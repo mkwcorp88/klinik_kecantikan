@@ -8,3 +8,6 @@ Aplikasi web sederhana untuk sebuah klinik kecantikan, dibangun dengan PHP nativ
 * **Admin:** Login khusus, dashboard statistik, kelola member, kelola layanan (CRUD dengan soft delete), kelola order (ubah status), kelola testimoni (approve/reject/delete).
 * **Frontend:** Halaman utama dengan slider layanan unggulan (SwiperJS), testimoni promo, CTA, footer informatif.
 * **Lainnya:** Desain responsif dengan Bootstrap 5, navigasi & tema konsisten.
+
+```markdown
+![Alt text](preview.png)
