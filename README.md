@@ -9,6 +9,5 @@ Aplikasi web sederhana untuk sebuah klinik kecantikan, dibangun dengan PHP nativ
 * **Frontend:** Halaman utama dengan slider layanan unggulan (SwiperJS), testimoni promo, CTA, footer informatif.
 * **Lainnya:** Desain responsif dengan Bootstrap 5, navigasi & tema konsisten.
 
-```markdown
-![Alt text](preview.png)
-![preview](https://github.com/user-attachments/assets/0e22b790-beeb-4687-9227-3da2bf73ffed)
+
+![](preview.png)
