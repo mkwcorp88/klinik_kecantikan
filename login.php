@@ -7,19 +7,58 @@ if (isset($_SESSION['user_id'])) {
     if (isset($_SESSION['redirect_url'])) {
         $redirect_url = $_SESSION['redirect_url'];
         unset($_SESSION['redirect_url']);
-        if (isset($_GET['id_layanan_after_login'])) {
+        if (isset($_GET['id_layanan_after_login'])) { // Khusus untuk redirect dari order.php
             $_SESSION['id_layanan_after_login'] = $_GET['id_layanan_after_login'];
         }
         header("Location: " . $redirect_url);
         exit();
     }
-    header("Location: index.php");
+    header("Location: index.php"); // Default redirect untuk member
     exit();
 }
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true ) {
-    header("Location: admin/index.php");
+    header("Location: admin/index.php"); // Default redirect untuk admin
     exit();
 }
+
+// Logika untuk menangani pesan notifikasi secara terpusat
+$display_message = '';
+$display_message_type = ''; // 'success', 'warning', 'info', 'danger'
+
+// Prioritaskan pesan dari session (biasanya lebih spesifik atau hasil aksi sebelumnya)
+if (isset($_SESSION['error_message_redirect'])) { // Pesan dari halaman yang mengarahkan karena belum login
+    $display_message = $_SESSION['error_message_redirect'];
+    $display_message_type = 'warning'; // Atau 'info' tergantung konteks asalnya
+    unset($_SESSION['error_message_redirect']);
+} elseif (isset($_SESSION['success_message'])) { // Pesan sukses, misal setelah registrasi
+    $display_message = $_SESSION['success_message'];
+    $display_message_type = 'success';
+    unset($_SESSION['success_message']);
+} elseif (isset($_GET['pesan'])) { // Jika tidak ada pesan session, cek GET parameter
+    $pesan = $_GET['pesan'];
+    if ($pesan == 'belum_login') {
+        $display_message = "Anda harus login terlebih dahulu untuk mengakses halaman tersebut.";
+        $display_message_type = 'warning';
+    } elseif ($pesan == 'belum_terdaftar_order') {
+        // Pesan ini spesifik, bisa jadi berasal dari redirect order.php jika tidak menggunakan session message
+        $display_message = 'Silakan login atau <a href="daftar.php" class="alert-link">daftar akun</a> untuk melanjutkan pesanan.';
+        $display_message_type = 'info';
+    } elseif ($pesan == 'belum_terdaftar_testimoni') {
+        $display_message = 'Silakan login atau <a href="daftar.php" class="alert-link">daftar akun</a> untuk memberi testimoni.';
+        $display_message_type = 'info';
+    } elseif ($pesan == 'logout' || $pesan == 'logout_admin_success') {
+        $display_message = "Anda telah berhasil logout.";
+        $display_message_type = 'success';
+    } elseif ($pesan == 'khusus_admin') {
+        $display_message = "Halaman tersebut khusus untuk Admin. Silakan login sebagai Admin.";
+        $display_message_type = 'danger';
+    } elseif ($pesan == 'error_sesi') {
+        $display_message = "Sesi tidak valid atau pengguna tidak ditemukan. Silakan login kembali.";
+        $display_message_type = 'danger';
+    }
+    // Anda bisa menambahkan penanganan untuk nilai 'pesan' lainnya di sini
+}
+
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $conn->real_escape_string(trim($_POST['username']));
@@ -29,12 +68,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($password)) $errors[] = "Password wajib diisi.";
 
     if (empty($errors)) {
+        // Cek login admin
         if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD_PLAIN) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_username'] = $username;
             header("Location: admin/index.php");
             exit();
         } else {
+            // Cek login member
             $stmt = $conn->prepare("SELECT id_user, username, password, nama_lengkap FROM user WHERE username = ?");
             $stmt->bind_param("s", $username);
             $stmt->execute();
@@ -46,16 +87,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['user_id'] = $user['id_user'];
                     $_SESSION['username'] = $user['username'];
 
+                    // Cek apakah ada URL redirect dari halaman sebelumnya (disimpan di session)
                     if (isset($_SESSION['redirect_url'])) {
                         $redirect_url = $_SESSION['redirect_url'];
                         unset($_SESSION['redirect_url']);
+                        // Periksa apakah ada parameter tambahan yang perlu dibawa (misal dari order.php)
                         if (isset($_GET['id_layanan_after_login'])) {
                              $_SESSION['id_layanan_after_login'] = $_GET['id_layanan_after_login'];
                         }
-                        header("Location: " . $redirect_url);
+                        header("Location: " . $redirect_url . (strpos($redirect_url, '?') === false ? '?' : '&') . 'login_success=1' );
                         exit();
                     }
-                    header("Location: index.php");
+
+                    header("Location: index.php?login_success=1"); // Default redirect setelah login member
                     exit();
                 } else {
                     $errors[] = "Username atau password salah.";
@@ -68,15 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-if (isset($_SESSION['success_message'])) {
-    $success_message = $_SESSION['success_message'];
-    unset($_SESSION['success_message']);
-}
-if (isset($_SESSION['error_message_redirect'])) {
-    $error_message_redirect = $_SESSION['error_message_redirect'];
-    unset($_SESSION['error_message_redirect']);
-}
-
+// Untuk meneruskan parameter redirect ke action form jika ada
 $redirect_query_params = '';
 if (isset($_GET['redirect_to_order']) && $_GET['redirect_to_order'] == 'true') {
     $redirect_query_params .= '?redirect_to_order=true';
@@ -85,7 +121,10 @@ if (isset($_GET['redirect_to_order']) && $_GET['redirect_to_order'] == 'true') {
     }
 } elseif (isset($_GET['redirect_to_testimoni']) && $_GET['redirect_to_testimoni'] == 'true') {
     $redirect_query_params .= '?redirect_to_testimoni=true';
+} elseif (isset($_SESSION['redirect_url'])) { // Jika redirect_url ada di session, prioritaskan itu
+    // Tidak perlu menambahkan redirect_url ke query string form jika sudah ditangani oleh session saat login sukses
 }
+
 
 $conn->close();
 ?>
@@ -99,10 +138,6 @@ $conn->close();
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
-    <style>
-        /* Hapus gaya .footer-enhanced dari sini jika sebelumnya ada */
-        /* Jika ada gaya footer lain yang spesifik di style.css, itu mungkin masih berlaku */
-    </style>
 </head>
 <body class="d-flex flex-column min-vh-100"> <?php /* STICKY FOOTER */ ?>
     <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
@@ -134,39 +169,20 @@ $conn->close();
                         <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login Akun</h4>
                     </div>
                     <div class="card-body p-4">
+                        <?php // Blok tunggal untuk menampilkan pesan ?>
+                        <?php if (!empty($display_message)): ?>
+                            <div class="alert alert-<?php echo $display_message_type; ?> alert-dismissible fade show" role="alert">
+                                <?php echo $display_message; // Pesan ini bisa mengandung HTML, pastikan aman ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+
                         <?php if (!empty($errors)): ?>
                             <div class="alert alert-danger">
                                 <?php foreach ($errors as $error): ?>
                                     <p class="mb-0"><?php echo htmlspecialchars($error); ?></p>
                                 <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
-                        <?php if (isset($success_message)): ?>
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <?php echo htmlspecialchars($success_message); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        <?php endif; ?>
-                        <?php if (isset($error_message_redirect)): ?>
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                <?php echo htmlspecialchars($error_message_redirect); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        <?php endif; ?>
-                        <?php if (isset($_GET['pesan'])): ?>
-                            <?php if ($_GET['pesan'] == 'belum_login'): ?>
-                                <div class="alert alert-warning">Anda harus login terlebih dahulu untuk mengakses halaman tersebut.</div>
-                            <?php elseif ($_GET['pesan'] == 'belum_terdaftar_order'): ?>
-                                 <div class="alert alert-info">Silakan login atau <a href="daftar.php" class="alert-link">daftar akun</a> untuk melanjutkan pesanan.</div>
-                            <?php elseif ($_GET['pesan'] == 'belum_terdaftar_testimoni'): ?>
-                                 <div class="alert alert-info">Silakan login atau <a href="daftar.php" class="alert-link">daftar akun</a> untuk memberi testimoni.</div>
-                            <?php elseif ($_GET['pesan'] == 'logout' || $_GET['pesan'] == 'logout_admin_success'): ?>
-                                <div class="alert alert-success">Anda telah berhasil logout.</div>
-                            <?php elseif ($_GET['pesan'] == 'khusus_admin'): ?>
-                                <div class="alert alert-danger">Halaman tersebut khusus untuk Admin. Silakan login sebagai Admin.</div>
-                            <?php elseif ($_GET['pesan'] == 'error_sesi'): ?>
-                                <div class="alert alert-danger">Sesi tidak valid atau pengguna tidak ditemukan. Silakan login kembali.</div>
-                            <?php endif; ?>
                         <?php endif; ?>
 
                         <form action="login.php<?php echo htmlspecialchars($redirect_query_params); ?>" method="post">

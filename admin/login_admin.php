@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="main-content container py-5">
         <div class="card shadow-lg">
             <div class="card-header bg-dark text-white text-center">
-                <h4>Login Administrator</h4>
+                <h4 class="text-white">Login Administrator</h4>
                 <small><?php echo NAMA_KLINIK; ?></small>
             </div>
             <div class="card-body p-4">
