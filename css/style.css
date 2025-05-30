@@ -1,0 +1,486 @@
+/* css/style.css - Versi Terbaru */
+
+/*--------------------------------------------------------------
+# General & Font Imports
+--------------------------------------------------------------*/
+/* Impor Google Fonts (jika Anda menggunakannya) */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Raleway:wght@300;400;500;600;700&display=swap');
+
+body {
+  font-family: 'Nunito', sans-serif;
+  color: #4F4F4F; /* Warna teks utama sedikit lebih lembut */
+  line-height: 1.7;
+  background-color: #f9f9f9; /* Warna latar belakang halaman yang sangat terang */
+}
+
+a {
+  color: #0d6efd; /* Primary Bootstrap color */
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+a:hover {
+  color: #0a58ca;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Raleway', sans-serif;
+  font-weight: 600; /* Sedikit lebih tebal untuk heading */
+  color: #333; /* Warna heading lebih gelap */
+}
+
+/*--------------------------------------------------------------
+# Navbar
+--------------------------------------------------------------*/
+.navbar {
+  /* box-shadow: 0 2px 15px rgba(0,0,0,0.05); /* Shadow lebih halus untuk navbar */
+}
+.navbar-brand img {
+  max-height: 40px;
+  margin-right: 10px;
+}
+.navbar .nav-link {
+  font-weight: 600;
+  color: #555;
+}
+.navbar .nav-link.active {
+  color: #0d6efd;
+}
+.navbar .btn-primary {
+  font-weight: 600;
+}
+
+
+/*--------------------------------------------------------------
+# Hero Section (index.php)
+--------------------------------------------------------------*/
+.hero-section {
+  background: url('../images/banner_promo.jpg') no-repeat center center; /* Path relatif dari CSS ke gambar */
+  background-size: cover;
+  color: white;
+  padding: 120px 0;
+  text-align: center;
+  position: relative; /* Untuk overlay */
+}
+
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4); /* Overlay gelap agar teks lebih terbaca */
+  z-index: 1;
+}
+
+.hero-section .container {
+  position: relative; /* Agar konten di atas overlay */
+  z-index: 2;
+}
+
+.hero-section h1 {
+  font-size: 3.5rem; /* Sesuaikan dengan style inline sebelumnya atau kebutuhan */
+  font-weight: 700;
+  text-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+  margin-bottom: 1rem;
+}
+
+.hero-section p.lead {
+  font-size: 1.3rem; /* Sesuaikan dengan style inline sebelumnya atau kebutuhan */
+  font-weight: 300;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  margin-bottom: 2rem;
+  max-width: 700px; /* Batasi lebar paragraf agar lebih mudah dibaca */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-section .btn {
+    font-weight: 600;
+    padding: 0.8rem 2rem; /* Padding tombol lebih besar */
+    border-radius: 50px; /* Tombol lebih bulat */
+    transition: transform 0.2s ease-out;
+}
+.hero-section .btn:hover {
+    transform: translateY(-3px);
+}
+
+
+/*--------------------------------------------------------------
+# Sections Umum
+--------------------------------------------------------------*/
+section {
+  padding: 60px 0;
+  overflow: hidden;
+}
+
+.section-title {
+  text-align: center;
+  padding-bottom: 30px;
+  position: relative;
+  margin-bottom: 30px; /* Mengurangi margin bawah default agak tidak terlalu jauh */
+}
+
+.section-title h2 {
+  font-size: 32px;
+  font-weight: 700; /* Lebih tebal */
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  position: relative;
+  color: #2c3e50; /* Warna judul yang lebih elegan */
+  text-transform: uppercase; /* Judul menjadi kapital */
+  letter-spacing: 1px;
+}
+
+.section-title h2::before { /* Garis atas pendek */
+  content: '';
+  position: absolute;
+  display: block;
+  width: 120px;
+  height: 1px;
+  background: #ddd;
+  bottom: 6px; /* Sedikit di atas garis utama */
+  left: calc(50% - 60px);
+}
+
+.section-title h2::after { /* Garis bawah utama */
+  content: '';
+  position: absolute;
+  display: block;
+  width: 60px; /* Garis lebih pendek dan tebal */
+  height: 4px;
+  background: #0d6efd; /* Primary color */
+  bottom: 0;
+  left: calc(50% - 30px);
+}
+
+/* Untuk judul section yang rata kiri */
+.section-title.text-start h2::before {
+  left: 0;
+}
+.section-title.text-start h2::after {
+  left: 0;
+}
+
+
+/*--------------------------------------------------------------
+# Card Styling Umum (Layanan, dll.)
+--------------------------------------------------------------*/
+.card {
+  border: none; /* Hilangkan border default */
+  border-radius: 10px; /* Kartu lebih rounded */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: #fff;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.card-img-top-custom {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-top-left-radius: 10px; /* Sesuaikan dengan border-radius kartu */
+  border-top-right-radius: 10px;
+}
+
+.card .card-title {
+  font-weight: 600;
+  color: #343a40;
+}
+.card .btn-primary {
+    border-radius: 50px;
+    font-weight: 600;
+}
+
+/*--------------------------------------------------------------
+# SwiperJS Carousel untuk Layanan Unggulan (index.php)
+--------------------------------------------------------------*/
+.swiper-container-layanan {
+  padding-top: 10px;
+  padding-bottom: 60px; /* Ruang untuk pagination dan navigasi */
+  overflow: hidden; /* Penting agar tidak ada scroll horizontal aneh */
+}
+
+.swiper-slide {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  height: auto; /* Biarkan tinggi diatur oleh konten kartu */
+}
+
+.swiper-slide .card {
+  width: 100%; /* Pastikan kartu mengisi lebar slide */
+  /* min-height: 450px; /* Contoh jika ingin tinggi seragam, atau gunakan h-100 pada kartu */
+}
+
+/* Tombol Navigasi Swiper (agar tidak menutupi konten) */
+#layanan-unggulan .swiper-button-prev,
+#layanan-unggulan .swiper-button-next {
+  color: #007bff; /* Warna ikon panah */
+  background-color: rgba(255, 255, 255, 0.8); /* Latar semi transparan */
+  border-radius: 50%;
+  width: 40px; /* Ukuran tombol */
+  height: 40px;
+  top: 50%; /* Posisi vertikal di tengah */
+  transform: translateY(-50%); /* Centering vertikal */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: background-color 0.3s ease;
+}
+#layanan-unggulan .swiper-button-prev:hover,
+#layanan-unggulan .swiper-button-next:hover {
+    background-color: rgba(255, 255, 255, 1);
+}
+
+#layanan-unggulan .swiper-button-prev {
+  left: -10px; /* Geser ke luar area slide, sesuaikan nilainya */
+}
+
+#layanan-unggulan .swiper-button-next {
+  right: -10px; /* Geser ke luar area slide, sesuaikan nilainya */
+}
+
+#layanan-unggulan .swiper-button-next::after,
+#layanan-unggulan .swiper-button-prev::after {
+  font-size: 18px; /* Ukuran ikon panah di dalam tombol */
+  font-weight: bold;
+}
+
+/* Pagination Swiper */
+.swiper-pagination-bullet {
+  background-color: #adb5bd; /* Warna bullet tidak aktif */
+  opacity: 1;
+  width: 10px; /* Ukuran bullet */
+  height: 10px;
+}
+.swiper-pagination-bullet-active {
+  background-color: #0d6efd; /* Warna pagination aktif */
+}
+
+/*--------------------------------------------------------------
+# Testimoni Pelanggan Ditingkatkan (index.php)
+--------------------------------------------------------------*/
+#testimoni-promo.bg-light { /* Jika menggunakan bg-light dari Bootstrap */
+  /* padding-top: 80px; */
+  /* padding-bottom: 80px; */
+}
+
+.testimonial-card-enhanced {
+  border: 1px solid #e9ecef;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 10px; /* Rounded corners */
+  background-color: #fff;
+}
+
+.testimonial-card-enhanced:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+.testimonial-avatar {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin-top: -35px; /* Setengah tinggi avatar agar sedikit keluar dari card body */
+  position: relative; /* Agar bisa di atas card body */
+  z-index: 2;
+}
+
+.testimonial-rating .fa-star {
+  color: #ffc107; /* Bootstrap warning color */
+  font-size: 1rem;
+}
+
+.testimonial-card-enhanced .card-body {
+  padding: 2.5rem 1.5rem 1.5rem 1.5rem; /* Padding lebih banyak di atas untuk avatar */
+}
+
+.testimonial-card-enhanced .card-footer {
+  background-color: #f8f9fa; /* Warna footer kartu */
+
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-bottom-left-radius: 10px; /* Sesuaikan dengan kartu */
+  border-bottom-right-radius: 10px;
+}
+
+.testimonial-name {
+  font-weight: 600;
+  color: #0d6efd; /* Warna nama primary */
+}
+
+/*--------------------------------------------------------------
+# Call to Action (CTA) Ditingkatkan (index.php)
+--------------------------------------------------------------*/
+#cta-enhanced {
+  /* background: radial-gradient(circle, rgba(101,78,163,1) 0%, rgba(234,175,200,1) 100%); Sudah inline, atau pindah ke sini */
+  /* Jika menggunakan gambar latar:
+  background-image: url('../images/cta_background.jpg');
+  background-size: cover;
+  background-attachment: fixed; // Efek parallax
+  background-position: center;
+  position: relative;
+  */
+  padding: 80px 0;
+}
+
+/* Overlay jika menggunakan gambar latar untuk CTA */
+/*
+#cta-enhanced::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5); // Sesuaikan opasitas
+}
+#cta-enhanced .container {
+  position: relative;
+  z-index: 1;
+}
+*/
+
+#cta-enhanced h2.display-5 {
+  font-weight: 700;
+}
+
+#cta-enhanced .lead {
+  font-weight: 300;
+  margin-bottom: 2.5rem !important; /* Menambah margin bawah */
+}
+
+.why-us-item .icon i {
+  /* opacity: 0.8; */ /* Sudah di inline text-white-50 */
+  /* font-size: 2rem; */ /* Sudah di inline fa-2x */
+}
+
+.why-us-item h6 {
+    font-weight: 600;
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+}
+
+#cta-enhanced .btn {
+  font-weight: 600;
+  padding: 0.8rem 2.5rem; /* Padding tombol lebih besar */
+  border-radius: 50px; /* Tombol lebih bulat */
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+#cta-enhanced .btn:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+}
+#cta-enhanced .btn-light:hover {
+    background-color: #f0f0f0; /* Sedikit efek hover untuk tombol light */
+}
+#cta-enhanced .btn-outline-light:hover {
+  background-color: #fff;
+  color: #654ea3; /* Warna teks saat hover, sesuaikan dengan warna gradient Anda */
+}
+
+/*--------------------------------------------------------------
+# Footer
+--------------------------------------------------------------*/
+footer.bg-dark {
+  /* padding-top: 3rem; */ /* Sudah ada py-4 */
+  /* padding-bottom: 3rem; */
+}
+footer.bg-dark a.text-white-50:hover {
+    color: #fff !important;
+}
+
+
+/*--------------------------------------------------------------
+# Admin Area - Gambar Preview (kelola_layanan.php)
+--------------------------------------------------------------*/
+.img-preview {
+  max-width: 80px;
+  max-height: 80px;
+  margin-top: 5px;
+  border: 1px solid #ddd;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+/*--------------------------------------------------------------
+# Sticky Footer Helper (jika tidak menggunakan Bootstrap class di body)
+--------------------------------------------------------------*/
+/*
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  // Margin bottom by footer height
+  // margin-bottom: 60px; // Sesuaikan dengan tinggi footer Anda
+}
+footer.sticky-footer-custom { // Tambahkan kelas ini ke footer Anda jika pakai metode ini
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  // Set the fixed height of the footer here
+  // height: 60px; // Sesuaikan
+  // background-color: #f5f5f5;
+}
+*/
+/* Catatan: Metode sticky footer dengan flexbox di tag body lebih direkomendasikan dan sudah Anda terapkan. */
+
+
+/*--------------------------------------------------------------
+# Utility & Responsiveness
+--------------------------------------------------------------*/
+.section-title.text-start h2::before,
+.section-title.text-start h2::after {
+    left: 0; /* Untuk judul section yang rata kiri */
+}
+
+
+@media (max-width: 768px) {
+  .hero-section h1 {
+    font-size: 2.8rem;
+  }
+  .hero-section p.lead {
+    font-size: 1.1rem;
+  }
+  .section-title h2 {
+    font-size: 28px;
+  }
+  #cta-enhanced h2.display-5 {
+    font-size: 2.5rem; /* Ukuran judul CTA di mobile */
+  }
+  #cta-enhanced .btn {
+    padding: 0.7rem 1.5rem; /* Padding tombol CTA di mobile */
+    width: 100%; /* Tombol CTA full width di mobile */
+    margin-bottom: 1rem !important;
+  }
+  #cta-enhanced .btn.me-md-3 {
+      margin-right: 0 !important; /* Hapus margin kanan di mobile */
+  }
+
+  /* Penyesuaian untuk Swiper Navigasi di mobile */
+  #layanan-unggulan .swiper-button-prev,
+  #layanan-unggulan .swiper-button-next {
+      width: 30px;
+      height: 30px;
+  }
+  #layanan-unggulan .swiper-button-prev {
+    left: 5px;
+  }
+  #layanan-unggulan .swiper-button-next {
+    right: 5px;
+  }
+  #layanan-unggulan .swiper-button-next::after,
+  #layanan-unggulan .swiper-button-prev::after {
+    font-size: 14px;
+  }
+}
