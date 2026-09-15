@@ -144,6 +144,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
             .admin-header { position: static; }
         }
     </style>
+    <link href="../css/admin-theme.css" rel="stylesheet">
 </head>
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex">

@@ -76,10 +76,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             justify-content: center;
         }
     </style>
+    <link href="../css/admin-theme.css" rel="stylesheet">
 </head>
-<body>
+<body class="admin-login-body">
     <div class="main-content container py-5">
-        <div class="card shadow-lg">
+        <div class="card shadow-lg admin-login-card">
             <div class="card-header bg-dark text-white text-center">
                 <h4 class="text-white">Login Administrator</h4>
                 <small><?php echo NAMA_KLINIK; ?></small>
@@ -115,7 +116,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-auto">
+    <footer class="bg-dark text-white text-center py-3 mt-auto admin-login-footer">
         <div class="container">
             <p class="mb-0">&copy; <?php echo date("Y"); ?> <?php echo NAMA_KLINIK; ?>. Admin Area.</p>
         </div>

@@ -216,6 +216,7 @@ if($pending_testimoni_query) $pending_testimoni_query->close();
             .admin-header { position: static; }
         }
     </style>
+    <link href="../css/admin-theme.css" rel="stylesheet">
 </head>
 <body>
     <div class="d-flex">

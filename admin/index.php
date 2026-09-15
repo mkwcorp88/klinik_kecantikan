@@ -235,6 +235,7 @@ $conn->close();
         }
 
     </style>
+    <link href="../css/admin-theme.css" rel="stylesheet">
 </head>
 <body>
     <div class="d-flex">
