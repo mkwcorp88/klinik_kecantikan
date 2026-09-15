@@ -50,6 +50,10 @@ $total_layanan_query = $conn->query("SELECT COUNT(*) as total FROM layanan WHERE
 $total_layanan_aktif = ($total_layanan_query && $total_layanan_query->num_rows > 0) ? $total_layanan_query->fetch_assoc()['total'] : 0;
 if($total_layanan_query) $total_layanan_query->close();
 
+$pending_withdrawals_query = $conn->query("SELECT COUNT(*) as total FROM affiliate_withdrawal WHERE status = 'pending'");
+$pending_withdrawals = ($pending_withdrawals_query && $pending_withdrawals_query->num_rows > 0) ? (int) $pending_withdrawals_query->fetch_assoc()['total'] : 0;
+if($pending_withdrawals_query) $pending_withdrawals_query->close();
+
 $conn->close();
 ?>
 <!doctype html>
@@ -286,6 +290,14 @@ $conn->close();
                         <i class="fas fa-shopping-cart"></i> Kelola Order
                          <?php if ($pending_orders > 0): ?>
                             <span class="badge bg-danger ms-1"><?php echo $pending_orders; ?></span>
+                        <?php endif; ?>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="kelola_afiliasi.php">
+                        <i class="fas fa-handshake"></i> Kelola Afiliasi
+                        <?php if ($pending_withdrawals > 0): ?>
+                            <span class="badge bg-warning text-dark ms-1"><?php echo $pending_withdrawals; ?></span>
                         <?php endif; ?>
                     </a>
                 </li>

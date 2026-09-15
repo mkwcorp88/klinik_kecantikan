@@ -62,6 +62,7 @@ if ($selectedBranchId === 0 && isset($returnQuery['cabang'], $branchesBySlug[$re
     $selectedBranchId = $branchesBySlug[$returnQuery['cabang']]['id_cabang'];
 }
 
+$activeReferral = drw_get_active_referral($conn, $userId);
 $bookingDate = trim((string) ($_POST['tanggal_treatment'] ?? ''));
 $bookingDateForDatabase = null;
 $notes = trim((string) ($_POST['catatan_tambahan'] ?? ''));
@@ -135,8 +136,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statement->close();
         }
 
-        $statement = $conn->prepare("INSERT INTO `order` (id_user, id_layanan, id_cabang, tanggal_treatment, catatan_tambahan, status_order) VALUES (?, ?, ?, ?, ?, 'pending')");
-        $statement->bind_param('iiiss', $userId, $selectedServiceId, $selectedBranchId, $bookingDateForDatabase, $notes);
+        $referredBy = $activeReferral ? (string) $activeReferral['affiliate_code'] : null;
+        $referrerId = $activeReferral ? (int) $activeReferral['id_user'] : null;
+        $servicePrice = (int) ($services[$selectedServiceId]['harga'] ?? 0);
+        $estimatedCommission = $referrerId !== null ? (int) round($servicePrice * 0.10) : 0;
+
+        $statement = $conn->prepare("INSERT INTO `order` (id_user, id_layanan, id_cabang, tanggal_treatment, catatan_tambahan, referred_by, referrer_id, komisi_nominal, komisi_status, status_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')");
+        $statement->bind_param('iiisssii', $userId, $selectedServiceId, $selectedBranchId, $bookingDateForDatabase, $notes, $referredBy, $referrerId, $estimatedCommission);
         $statement->execute();
         $statement->close();
 
@@ -204,6 +210,16 @@ $conn->close();
                 <?php if ($errors !== []): ?>
                     <div class="alert alert-danger" role="alert">
                         <?php foreach ($errors as $error): ?><p class="mb-0"><?php echo htmlspecialchars($error); ?></p><?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($activeReferral): ?>
+                    <div class="alert alert-success d-flex align-items-center mb-4 shadow-sm border-success">
+                        <i class="fas fa-gift fa-2x text-success me-3"></i>
+                        <div>
+                            <div class="fw-bold">Program Referral Pasien</div>
+                            <div class="small">Anda direferensikan oleh <strong><?php echo htmlspecialchars($activeReferral['nama_lengkap']); ?></strong> (Kode: <code><?php echo htmlspecialchars($activeReferral['affiliate_code']); ?></code>). Terima kasih telah berkunjung!</div>
+                        </div>
                     </div>
                 <?php endif; ?>
 

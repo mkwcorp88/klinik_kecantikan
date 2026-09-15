@@ -236,6 +236,11 @@ $conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="kelola_afiliasi.php">
+                        <i class="fas fa-handshake"></i> Kelola Afiliasi
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="kelola_testimoni.php">
                         <i class="fas fa-comment-dots"></i> Kelola Testimoni
                         <?php if ($pending_testimoni > 0): ?>

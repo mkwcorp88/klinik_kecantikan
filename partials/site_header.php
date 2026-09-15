@@ -7,7 +7,7 @@ $navItems = [
     ['key' => 'home', 'href' => 'index.php', 'label' => 'Beranda'],
     ['key' => 'tentang', 'href' => 'tentang.php', 'label' => 'Tentang'],
     ['key' => 'layanan', 'href' => 'layanan.php', 'label' => 'Layanan'],
-    ['key' => 'fasilitas', 'href' => 'fasilitas.php', 'label' => 'Fasilitas'],
+    ['key' => 'afiliasi', 'href' => 'afiliasi.php', 'label' => 'Afiliator'],
     ['key' => 'cabang', 'href' => 'cabang.php', 'label' => 'Cabang'],
     ['key' => 'kontak', 'href' => 'kontak.php', 'label' => 'Kontak'],
 ];

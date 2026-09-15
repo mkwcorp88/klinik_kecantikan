@@ -17,7 +17,7 @@
                     <a href="index.php">Beranda</a>
                     <a href="tentang.php">Tentang</a>
                     <a href="layanan.php">Layanan</a>
-                    <a href="fasilitas.php">Fasilitas</a>
+                    <a href="afiliasi.php">Dashboard Afiliator</a>
                     <a href="cabang.php">Cabang</a>
                     <a href="kontak.php">Kontak</a>
                 </div>

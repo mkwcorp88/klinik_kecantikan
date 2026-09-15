@@ -90,7 +90,7 @@ require 'partials/site_header.php';
                 </div>
             </div>
             <div class="row g-4">
-                <div class="col-md-4"><a class="drw-link-panel" href="fasilitas.php"><span class="drw-link-panel-icon"><i class="fa-solid fa-building"></i></span><strong>Fasilitas &amp; Alur</strong><span>Kenali ruang perawatan dan langkah pelayanan kami.</span><i class="fa-solid fa-arrow-right"></i></a></div>
+                <div class="col-md-4"><a class="drw-link-panel" href="afiliasi.php"><span class="drw-link-panel-icon"><i class="fa-solid fa-handshake"></i></span><strong>Dashboard Afiliator</strong><span>Program kemitraan &amp; komisi referral pasien.</span><i class="fa-solid fa-arrow-right"></i></a></div>
                 <div class="col-md-4"><a class="drw-link-panel" href="cabang.php"><span class="drw-link-panel-icon"><i class="fa-solid fa-location-dot"></i></span><strong>Cabang Klinik</strong><span>Pilih lokasi yang paling nyaman untuk Anda kunjungi.</span><i class="fa-solid fa-arrow-right"></i></a></div>
                 <div class="col-md-4"><a class="drw-link-panel" href="kontak.php"><span class="drw-link-panel-icon"><i class="fa-solid fa-comments"></i></span><strong>Kontak &amp; Reservasi</strong><span>Hubungi tim kami untuk menanyakan kebutuhan Anda.</span><i class="fa-solid fa-arrow-right"></i></a></div>
             </div>

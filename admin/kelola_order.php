@@ -54,6 +54,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])
                 $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
                 $stmt_update->bind_param("si", $new_status, $order_id);
                 if ($stmt_update->execute()) {
+                    if ($new_status === 'completed') {
+                        drw_process_order_commission($conn, $order_id);
+                    } elseif ($new_status === 'cancelled') {
+                        drw_revert_order_commission($conn, $order_id);
+                    }
                     drw_flash('success', "Status booking ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
                 } else {
                     drw_flash('danger', 'Gagal memperbarui status booking. Terjadi kesalahan internal.');
@@ -117,11 +122,12 @@ if (!empty($search_user_get)) {
      $queryParams[] = $search_like;
 }
 
-$sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan
+$sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan, o.referred_by, o.komisi_nominal, o.komisi_status, ref_u.nama_lengkap AS referrer_nama
                FROM `order` o
                JOIN user u ON o.id_user = u.id_user
                JOIN layanan l ON o.id_layanan = l.id_layanan
-               LEFT JOIN cabang c ON o.id_cabang = c.id_cabang";
+               LEFT JOIN cabang c ON o.id_cabang = c.id_cabang
+               LEFT JOIN user ref_u ON ref_u.id_user = o.referrer_id";
 if (!empty($where_clauses)) {
     $sql_orders .= " WHERE " . implode(" AND ", $where_clauses);
 }
@@ -210,6 +216,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                 <li class="nav-item"><a class="nav-link" href="kelola_user.php"><i class="fas fa-users"></i> Kelola Member</a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_layanan.php"><i class="fas fa-concierge-bell"></i> Kelola Layanan</a></li>
                 <li class="nav-item"><a class="nav-link active" aria-current="page" href="kelola_order.php"><i class="fas fa-shopping-cart"></i> Kelola Order <?php if ($pending_orders > 0) echo "<span class='badge bg-danger ms-1'>$pending_orders</span>"; ?></a></li>
+                <li class="nav-item"><a class="nav-link" href="kelola_afiliasi.php"><i class="fas fa-handshake"></i> Kelola Afiliasi</a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_testimoni.php"><i class="fas fa-comment-dots"></i> Kelola Testimoni <?php if ($pending_testimoni > 0) echo "<span class='badge bg-warning ms-1'>$pending_testimoni</span>"; ?></a></li>
             </ul>
             <hr class="text-secondary"><ul class="nav flex-column"><li class="nav-item"><a class="nav-link" href="../index.php" target="_blank"><i class="fas fa-globe"></i> Lihat Website</a></li><li class="nav-item"><a class="nav-link" href="logout_admin.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li></ul>
@@ -291,6 +298,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                          <th scope="col">Member (Telp)</th>
                                          <th scope="col">Cabang</th>
                                          <th scope="col">Layanan</th>
+                                        <th scope="col">Afiliasi</th>
                                         <th scope="col">Jadwal Treatment</th>
                                         <th scope="col">Tgl Order</th>
                                         <th scope="col">Catatan</th>
@@ -309,7 +317,20 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                              </td>
                                              <td><?php echo htmlspecialchars($order['nama_cabang'] ?? 'Belum dicatat'); ?></td>
                                              <td><?php echo htmlspecialchars($order['nama_layanan']); ?></td>
-                                            <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></td>
+                                             <td>
+                                                 <?php if (!empty($order['referred_by'])): ?>
+                                                     <span class="badge bg-primary text-white"><i class="fas fa-handshake me-1"></i><?php echo htmlspecialchars((string) $order['referred_by']); ?></span>
+                                                     <?php if (!empty($order['referrer_nama'])): ?>
+                                                         <br><small class="text-muted"><?php echo htmlspecialchars((string) $order['referrer_nama']); ?></small>
+                                                     <?php endif; ?>
+                                                     <?php if ($order['komisi_status'] === 'paid'): ?>
+                                                         <br><small class="text-success fw-bold">Komisi: Rp <?php echo number_format((int) $order['komisi_nominal'], 0, ',', '.'); ?></small>
+                                                     <?php endif; ?>
+                                                 <?php else: ?>
+                                                     <span class="text-muted small">-</span>
+                                                 <?php endif; ?>
+                                             </td>
+                                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></td>
                                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></td>
                                             <td><small><?php echo nl2br(htmlspecialchars($order['catatan_tambahan'] ? $order['catatan_tambahan'] : '-')); ?></small></td>
                                             <td class="text-center">

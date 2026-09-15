@@ -134,7 +134,7 @@ function drw_sanitize_return_path(?string $returnPath, string $fallback = 'index
         return $fallback;
     }
 
-    $allowedPaths = ['index.php', 'order.php', 'profil.php', 'riwayat_order.php', 'testimoni_buat.php'];
+    $allowedPaths = ['index.php', 'order.php', 'profil.php', 'riwayat_order.php', 'testimoni_buat.php', 'afiliasi.php'];
     $path = ltrim($parts['path'] ?? '', '/');
     if (!in_array($path, $allowedPaths, true)) {
         return $fallback;
@@ -148,6 +148,9 @@ function drw_sanitize_return_path(?string $returnPath, string $fallback = 'index
         }
         if (isset($query['cabang']) && preg_match('/^[a-z0-9-]{2,50}$/', (string) $query['cabang'])) {
             $safeQuery['cabang'] = (string) $query['cabang'];
+        }
+        if (isset($query['ref']) && preg_match('/^[A-Za-z0-9]{3,20}$/', (string) $query['ref'])) {
+            $safeQuery['ref'] = (string) $query['ref'];
         }
     }
 
@@ -193,3 +196,6 @@ function drw_require_member(string $message, string $returnPath): void
     header('Location: ' . drw_app_url('login.php'));
     exit();
 }
+
+require_once __DIR__ . '/includes/affiliate_helper.php';
+drw_capture_referral();
