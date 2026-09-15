@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "127.0.0.1:5086:80"
+    volumes:
+      - clinic_images:/var/www/html/images
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - clinic_internal
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    volumes:
+      - clinic_db_data:/var/lib/mysql
+      - ./klinik_drw_estetika.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -u root -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - clinic_internal
+
+volumes:
+  clinic_db_data:
+  clinic_images:
+
+networks:
+  clinic_internal:
+    driver: bridge

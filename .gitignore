@@ -1,3 +1,4 @@
 /config.local.php
 /vendor/
 /.phpunit.result.cache
+/.env.production

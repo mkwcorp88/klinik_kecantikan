@@ -2,6 +2,8 @@
 .phpunit.result.cache
 config.local.php
 config.local.php.example
+.env.production
+.env.production.example
 vendor
 preview.html
 preview.png
