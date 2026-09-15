@@ -78,10 +78,6 @@ if ($adminCabangId === null) {
     $stmt->close();
 }
 
-$pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
-$pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
-if($pending_testimoni_query) $pending_testimoni_query->close();
-
 $conn->close();
 ?>
 <!doctype html>
@@ -237,15 +233,7 @@ $conn->close();
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="kelola_afiliasi.php">
-                        <i class="fas fa-handshake"></i> Kelola Afiliasi
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="kelola_testimoni.php">
-                        <i class="fas fa-comment-dots"></i> Kelola Testimoni
-                        <?php if ($pending_testimoni > 0): ?>
-                            <span class="badge bg-warning ms-1"><?php echo $pending_testimoni; ?></span>
-                        <?php endif; ?>
+                        <i class="fas fa-handshake"></i> Afiliator
                     </a>
                 </li>
             </ul>

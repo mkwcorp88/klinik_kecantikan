@@ -20,6 +20,7 @@ CREATE TABLE `user` (
   `aido_mr` varchar(50) DEFAULT NULL COMMENT 'Nomor MR dari AIDO, unik per pasien',
   `id_cabang` int(11) DEFAULT NULL COMMENT 'Cabang utama member',
   `affiliate_code` varchar(20) DEFAULT NULL COMMENT 'Kode afiliasi unik',
+  `status_afiliasi` enum('pending','aktif','nonaktif') NOT NULL DEFAULT 'pending' COMMENT 'Status approval dan keaktifan afiliator',
   `affiliate_code_updated_at` datetime DEFAULT NULL COMMENT 'Terakhir kali ubah kode afiliasi',
   `total_komisi` int(11) NOT NULL DEFAULT 0 COMMENT 'Saldo komisi aktif/siap ditarik',
   `total_ditarik` int(11) NOT NULL DEFAULT 0 COMMENT 'Total komisi yang telah dicairkan',

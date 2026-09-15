@@ -137,13 +137,13 @@ function drw_get_active_referral(mysqli $conn, ?int $currentUserId = null): ?arr
         return null;
     }
 
-    $stmt = $conn->prepare('SELECT id_user, nama_lengkap, affiliate_code FROM user WHERE affiliate_code = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT id_user, nama_lengkap, affiliate_code, status_afiliasi FROM user WHERE affiliate_code = ? LIMIT 1');
     $stmt->bind_param('s', $code);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$row) {
+    if (!$row || ($row['status_afiliasi'] ?? 'nonaktif') !== 'aktif') {
         return null;
     }
 
@@ -167,10 +167,12 @@ function drw_process_order_commission(mysqli $conn, int $orderId, ?int $actualPa
 {
     $stmt = $conn->prepare('
         SELECT o.id_order, o.referrer_id, o.komisi_nominal, o.komisi_status, o.total_bayar,
-               l.harga, l.nama_layanan, u.nama_lengkap AS patient_name
+               l.harga, l.nama_layanan, u.nama_lengkap AS patient_name,
+               u_ref.status_afiliasi AS referrer_status
         FROM `order` o
         JOIN layanan l ON l.id_layanan = o.id_layanan
         JOIN user u ON u.id_user = o.id_user
+        LEFT JOIN user u_ref ON u_ref.id_user = o.referrer_id
         WHERE o.id_order = ? LIMIT 1
     ');
     $stmt->bind_param('i', $orderId);
@@ -178,7 +180,7 @@ function drw_process_order_commission(mysqli $conn, int $orderId, ?int $actualPa
     $order = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$order || empty($order['referrer_id'])) {
+    if (!$order || empty($order['referrer_id']) || ($order['referrer_status'] ?? 'nonaktif') !== 'aktif') {
         return false;
     }
 

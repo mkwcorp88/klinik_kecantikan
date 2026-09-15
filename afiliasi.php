@@ -13,6 +13,7 @@ $isLoggedIn = drw_is_logged_in();
 $currentUser = null;
 $affiliateCode = '';
 $referralLink = '';
+$affiliateStatus = 'pending';
 $stats = [
     'total_komisi' => 0,
     'total_ditarik' => 0,
@@ -77,15 +78,19 @@ if ($isLoggedIn) {
             $accountName = trim((string) ($_POST['account_name'] ?? ''));
 
             // Ambil saldo saat ini
-            $stmtUser = $conn->prepare('SELECT total_komisi FROM user WHERE id_user = ? LIMIT 1');
+            $stmtUser = $conn->prepare('SELECT total_komisi, status_afiliasi FROM user WHERE id_user = ? LIMIT 1');
             $stmtUser->bind_param('i', $userId);
             $stmtUser->execute();
-            $userBalance = (int) ($stmtUser->get_result()->fetch_assoc()['total_komisi'] ?? 0);
+            $userBalanceRow = $stmtUser->get_result()->fetch_assoc();
+            $userBalance = (int) ($userBalanceRow['total_komisi'] ?? 0);
+            $userStatus = (string) ($userBalanceRow['status_afiliasi'] ?? 'pending');
             $stmtUser->close();
 
             $minWithdrawal = 50000;
 
-            if ($amount < $minWithdrawal) {
+            if ($userStatus !== 'aktif') {
+                drw_flash('danger', 'Penarikan belum tersedia karena status afiliator Anda belum aktif.');
+            } elseif ($amount < $minWithdrawal) {
                 drw_flash('danger', 'Minimal penarikan komisi adalah Rp ' . number_format($minWithdrawal, 0, ',', '.') . '.');
             } elseif ($amount > $userBalance) {
                 drw_flash('danger', 'Saldo komisi Anda tidak mencukupi (Tersedia: Rp ' . number_format($userBalance, 0, ',', '.') . ').');
@@ -95,10 +100,15 @@ if ($isLoggedIn) {
                 $conn->begin_transaction();
                 try {
                     // Potong saldo user
-                    $stmtDeduct = $conn->prepare('UPDATE user SET total_komisi = total_komisi - ? WHERE id_user = ?');
-                    $stmtDeduct->bind_param('ii', $amount, $userId);
+                    $stmtDeduct = $conn->prepare('UPDATE user SET total_komisi = total_komisi - ? WHERE id_user = ? AND total_komisi >= ? AND status_afiliasi = "aktif"');
+                    $stmtDeduct->bind_param('iii', $amount, $userId, $amount);
                     $stmtDeduct->execute();
+                    $deducted = $stmtDeduct->affected_rows;
                     $stmtDeduct->close();
+
+                    if ($deducted !== 1) {
+                        throw new DomainException('Saldo berubah atau status afiliator tidak aktif. Silakan muat ulang halaman dan coba lagi.');
+                    }
 
                     // Simpan permohonan penarikan
                     $stmtWd = $conn->prepare('
@@ -128,7 +138,10 @@ if ($isLoggedIn) {
 
                     $conn->commit();
                     drw_flash('success', 'Pengajuan penarikan komisi sebesar Rp ' . number_format($amount, 0, ',', '.') . ' berhasil dikirim. Tim admin akan memproses dalam 1-3 hari kerja.');
-                } catch (Throwable $e) {
+            } catch (DomainException $e) {
+                $conn->rollback();
+                drw_flash('danger', $e->getMessage());
+            } catch (Throwable $e) {
                     $conn->rollback();
                     error_log('Gagal mengajukan withdrawal: ' . $e->getMessage());
                     drw_flash('danger', 'Terjadi kesalahan sistem saat mengajukan penarikan. Silakan coba kembali.');
@@ -140,13 +153,14 @@ if ($isLoggedIn) {
     }
 
     // Ambil data profil user
-    $stmt = $conn->prepare('SELECT id_user, nama_lengkap, email, no_telepon, affiliate_code, total_komisi, total_ditarik, total_referral FROM user WHERE id_user = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT id_user, nama_lengkap, email, no_telepon, affiliate_code, status_afiliasi, total_komisi, total_ditarik, total_referral FROM user WHERE id_user = ? LIMIT 1');
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $currentUser = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     if ($currentUser) {
+        $affiliateStatus = (string) ($currentUser['status_afiliasi'] ?? 'pending');
         $affiliateCode = drw_get_user_affiliate_code($conn, $userId, (string) $currentUser['nama_lengkap']);
         $referralLink = drw_app_url('order.php?ref=' . urlencode($affiliateCode));
 
@@ -217,6 +231,16 @@ if ($isLoggedIn) {
 }
 
 $flash = drw_consume_flash();
+$affiliateStatusLabel = [
+    'aktif' => 'Afiliator Aktif',
+    'nonaktif' => 'Afiliator Nonaktif',
+    'pending' => 'Menunggu Approval',
+][$affiliateStatus] ?? 'Menunggu Approval';
+$affiliateStatusClass = [
+    'aktif' => 'bg-success',
+    'nonaktif' => 'bg-danger',
+    'pending' => 'bg-warning text-dark',
+][$affiliateStatus] ?? 'bg-warning text-dark';
 require 'partials/site_header.php';
 ?>
 
@@ -332,12 +356,12 @@ require 'partials/site_header.php';
             <!-- MEMBER VIEW: DASHBOARD AFILIATOR TERPADU -->
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
                 <div>
-                    <span class="badge bg-primary text-dark px-3 py-1 mb-1 font-monospace fw-semibold"><i class="fa-solid fa-certificate me-1"></i> Afiliator Resmi</span>
+                    <span class="badge <?= $affiliateStatusClass ?> px-3 py-1 mb-1 font-monospace fw-semibold"><i class="fa-solid fa-certificate me-1"></i> <?= htmlspecialchars($affiliateStatusLabel, ENT_QUOTES, 'UTF-8') ?></span>
                     <h1 class="h3 fw-bold mb-0">Dashboard Afiliator</h1>
                     <p class="text-muted small mb-0">Hai <strong><?= htmlspecialchars((string) ($currentUser['nama_lengkap'] ?? $_SESSION['username']), ENT_QUOTES, 'UTF-8') ?></strong>, kelola referral dan penghasilan komisi Anda di sini.</p>
                 </div>
                 <div>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#withdrawModal" <?= $stats['total_komisi'] < 50000 ? 'disabled' : '' ?>>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#withdrawModal" <?= $affiliateStatus !== 'aktif' || $stats['total_komisi'] < 50000 ? 'disabled' : '' ?>>
                         <i class="fa-solid fa-money-bill-wave me-1"></i> Tarik Komisi
                     </button>
                 </div>
@@ -358,21 +382,28 @@ require 'partials/site_header.php';
                             <p class="text-white-50 small mb-0">Komisi 10% otomatis tercatat setiap kali pasien menyelesaikan reservasi menggunakan kode Anda.</p>
                         </div>
                         <div class="col-lg-6">
-                            <label class="form-label text-white-50 small mb-1">Tautan Referral Siap Bagikan:</label>
-                            <div class="input-group mb-3">
-                                <input type="text" class="form-control form-control-sm font-monospace bg-dark text-white border-secondary" id="referralLinkInput" value="<?= htmlspecialchars($referralLink, ENT_QUOTES, 'UTF-8') ?>" readonly>
-                                <button class="btn btn-warning btn-sm px-3 fw-bold" type="button" id="btnCopyLink">
-                                    <i class="fa-solid fa-copy me-1"></i> Salin Link
-                                </button>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#qrModal">
-                                    <i class="fa-solid fa-qrcode me-1"></i> Tampilkan QR Code
-                                </button>
-                                <a class="btn btn-sm btn-success" href="https://api.whatsapp.com/send?text=<?= urlencode('Yuk konsultasi dan treatment di Klinik DRW Estetika menggunakan link referral saya: ' . $referralLink) ?>" target="_blank" rel="noopener noreferrer">
-                                    <i class="fa-brands fa-whatsapp me-1"></i> Share ke WhatsApp
-                                </a>
-                            </div>
+                            <?php if ($affiliateStatus === 'aktif'): ?>
+                                <label class="form-label text-white-50 small mb-1">Tautan Referral Siap Bagikan:</label>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control form-control-sm font-monospace bg-dark text-white border-secondary" id="referralLinkInput" value="<?= htmlspecialchars($referralLink, ENT_QUOTES, 'UTF-8') ?>" readonly>
+                                    <button class="btn btn-warning btn-sm px-3 fw-bold" type="button" id="btnCopyLink">
+                                        <i class="fa-solid fa-copy me-1"></i> Salin Link
+                                    </button>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#qrModal">
+                                        <i class="fa-solid fa-qrcode me-1"></i> Tampilkan QR Code
+                                    </button>
+                                    <a class="btn btn-sm btn-success" href="https://api.whatsapp.com/send?text=<?= urlencode('Yuk konsultasi dan treatment di Klinik DRW Estetika menggunakan link referral saya: ' . $referralLink) ?>" target="_blank" rel="noopener noreferrer">
+                                        <i class="fa-brands fa-whatsapp me-1"></i> Share ke WhatsApp
+                                    </a>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-warning mb-0">
+                                    <strong><i class="fa-solid fa-clock me-1"></i> <?= htmlspecialchars($affiliateStatusLabel, ENT_QUOTES, 'UTF-8') ?></strong>
+                                    <div class="small mt-1">Link referral dan penarikan komisi akan aktif setelah admin menyetujui akun afiliator Anda.</div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

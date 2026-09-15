@@ -58,8 +58,9 @@ Untuk database lama, buat backup lalu jalankan migrasi berikut **berurutan**:
 3. `migrations/003_aido_import.sql` — kolom `aido_mr` dan indeks untuk impor AIDO Purworejo.
 4. `migrations/004_member_cabang.sql` — kolom `id_cabang` pada tabel `user`, foreign key, dan pengisian cabang utama untuk member AIDO yang sudah ada.
 5. `migrations/005_affiliate_system.sql` — sistem afiliasi (kode referral, komisi, penarikan/withdrawal, dan log mutasi komisi).
+6. `migrations/006_affiliate_status.sql` — status pending/aktif/nonaktif afiliator untuk approval dan manajemen admin.
 
-Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi 001–005 setelah mengimpor `klinik_drw_estetika.sql` (bootstrap sudah lengkap).
+Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi 001–006 setelah mengimpor `klinik_drw_estetika.sql` (bootstrap sudah lengkap).
 
 ## Konfigurasi Login Google
 

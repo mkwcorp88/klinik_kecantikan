@@ -25,81 +25,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newStatus = (string) ($_POST['status'] ?? '');
         $adminNotes = trim((string) ($_POST['admin_notes'] ?? ''));
         $allowedStatus = ['pending', 'approved', 'completed', 'rejected'];
+        $allowedTransitions = [
+            'pending' => ['pending', 'approved', 'rejected'],
+            'approved' => ['approved', 'completed', 'rejected'],
+            'completed' => ['completed'],
+            'rejected' => ['rejected'],
+        ];
 
         if ($withdrawalId <= 0 || !in_array($newStatus, $allowedStatus, true)) {
             drw_flash('danger', 'Parameter penarikan tidak valid.');
         } else {
-            $stmtWd = $conn->prepare('SELECT id_withdrawal, id_user, nominal, status FROM affiliate_withdrawal WHERE id_withdrawal = ? LIMIT 1');
-            $stmtWd->bind_param('i', $withdrawalId);
-            $stmtWd->execute();
-            $wd = $stmtWd->get_result()->fetch_assoc();
-            $stmtWd->close();
+            $conn->begin_transaction();
+            try {
+                $wdSql = '
+                    SELECT w.id_withdrawal, w.id_user, w.nominal, w.status
+                    FROM affiliate_withdrawal w
+                    JOIN user u ON u.id_user = w.id_user
+                    WHERE w.id_withdrawal = ?
+                ';
+                if ($adminCabangId !== null) {
+                    $wdSql .= ' AND u.id_cabang = ?';
+                }
+                $wdSql .= ' LIMIT 1 FOR UPDATE';
+                $stmtWd = $conn->prepare($wdSql);
+                if ($adminCabangId === null) {
+                    $stmtWd->bind_param('i', $withdrawalId);
+                } else {
+                    $stmtWd->bind_param('ii', $withdrawalId, $adminCabangId);
+                }
+                $stmtWd->execute();
+                $wd = $stmtWd->get_result()->fetch_assoc();
+                $stmtWd->close();
 
-            if (!$wd) {
-                drw_flash('danger', 'Data penarikan tidak ditemukan.');
-            } else {
+                if (!$wd) {
+                    throw new DomainException('Data penarikan tidak ditemukan atau bukan bagian dari cabang Anda.');
+                }
+
                 $oldStatus = (string) $wd['status'];
                 $amount = (int) $wd['nominal'];
                 $userId = (int) $wd['id_user'];
-
-                $conn->begin_transaction();
-                try {
-                    // Update status penarikan
-                    $stmtUpd = $conn->prepare('
-                        UPDATE affiliate_withdrawal
-                        SET status = ?, catatan_admin = ?, tanggal_diproses = NOW()
-                        WHERE id_withdrawal = ?
-                    ');
-                    $stmtUpd->bind_param('ssi', $newStatus, $adminNotes, $withdrawalId);
-                    $stmtUpd->execute();
-                    $stmtUpd->close();
-
-                    // Logika saldo:
-                    // Jika ditolak dari pending/approved: kembalikan saldo komisi ke user
-                    if ($newStatus === 'rejected' && $oldStatus !== 'rejected') {
-                        $stmtRefund = $conn->prepare('UPDATE user SET total_komisi = total_komisi + ? WHERE id_user = ?');
-                        $stmtRefund->bind_param('ii', $amount, $userId);
-                        $stmtRefund->execute();
-                        $stmtRefund->close();
-
-                        $logDesc = 'Pengembalian saldo: Penarikan #' . $withdrawalId . ' ditolak. Catatan: ' . ($adminNotes ?: '-');
-                        $stmtLog = $conn->prepare('INSERT INTO affiliate_log (id_user, tipe, nominal, keterangan, id_withdrawal) VALUES (?, "koreksi", ?, ?, ?)');
-                        $stmtLog->bind_param('iisi', $userId, $amount, $logDesc, $withdrawalId);
-                        $stmtLog->execute();
-                        $stmtLog->close();
-                    }
-                    // Jika selesai ditransfer (completed): catat ke total_ditarik
-                    elseif ($newStatus === 'completed' && $oldStatus !== 'completed') {
-                        $stmtCompleted = $conn->prepare('UPDATE user SET total_ditarik = total_ditarik + ? WHERE id_user = ?');
-                        $stmtCompleted->bind_param('ii', $amount, $userId);
-                        $stmtCompleted->execute();
-                        $stmtCompleted->close();
-                    }
-                    // Jika sebelumnya rejected tapi diubah ke pending/approved/completed: potong kembali saldo
-                    elseif ($oldStatus === 'rejected' && $newStatus !== 'rejected') {
-                        $stmtReDeduct = $conn->prepare('UPDATE user SET total_komisi = GREATEST(0, total_komisi - ?) WHERE id_user = ?');
-                        $stmtReDeduct->bind_param('ii', $amount, $userId);
-                        $stmtReDeduct->execute();
-                        $stmtReDeduct->close();
-
-                        if ($newStatus === 'completed') {
-                            $stmtCompleted = $conn->prepare('UPDATE user SET total_ditarik = total_ditarik + ? WHERE id_user = ?');
-                            $stmtCompleted->bind_param('ii', $amount, $userId);
-                            $stmtCompleted->execute();
-                            $stmtCompleted->close();
-                        }
-                    }
-
-                    $conn->commit();
-                    drw_flash('success', 'Status penarikan #' . $withdrawalId . ' berhasil diperbarui menjadi: ' . ucfirst($newStatus));
-                } catch (Throwable $e) {
-                    $conn->rollback();
-                    error_log('Error update withdrawal: ' . $e->getMessage());
-                    drw_flash('danger', 'Gagal memperbarui status penarikan. Terjadi kesalahan database.');
+                if (!in_array($newStatus, $allowedTransitions[$oldStatus] ?? [], true)) {
+                    throw new DomainException('Status penarikan yang sudah selesai atau ditolak tidak dapat diubah kembali.');
                 }
+
+                // Saldo sudah ditahan saat member mengajukan penarikan.
+                if ($newStatus === 'rejected' && $oldStatus !== 'rejected') {
+                    $stmtRefund = $conn->prepare('UPDATE user SET total_komisi = total_komisi + ? WHERE id_user = ?');
+                    $stmtRefund->bind_param('ii', $amount, $userId);
+                    $stmtRefund->execute();
+                    $stmtRefund->close();
+
+                    $logDesc = 'Pengembalian saldo: Penarikan #' . $withdrawalId . ' ditolak. Catatan: ' . ($adminNotes ?: '-');
+                    $stmtLog = $conn->prepare('INSERT INTO affiliate_log (id_user, tipe, nominal, keterangan, id_withdrawal) VALUES (?, "koreksi", ?, ?, ?)');
+                    $stmtLog->bind_param('iisi', $userId, $amount, $logDesc, $withdrawalId);
+                    $stmtLog->execute();
+                    $stmtLog->close();
+                } elseif ($newStatus === 'completed' && $oldStatus !== 'completed') {
+                    $stmtCompleted = $conn->prepare('UPDATE user SET total_ditarik = total_ditarik + ? WHERE id_user = ?');
+                    $stmtCompleted->bind_param('ii', $amount, $userId);
+                    $stmtCompleted->execute();
+                    $stmtCompleted->close();
+                }
+
+                $stmtUpd = $conn->prepare('
+                    UPDATE affiliate_withdrawal
+                    SET status = ?, catatan_admin = ?, tanggal_diproses = CASE WHEN ? = "pending" THEN NULL ELSE NOW() END
+                    WHERE id_withdrawal = ?
+                ');
+                $stmtUpd->bind_param('sssi', $newStatus, $adminNotes, $newStatus, $withdrawalId);
+                $stmtUpd->execute();
+                $stmtUpd->close();
+
+                $conn->commit();
+                drw_flash('success', 'Status penarikan #' . $withdrawalId . ' berhasil diperbarui menjadi: ' . ucfirst($newStatus));
+            } catch (DomainException $e) {
+                $conn->rollback();
+                drw_flash('danger', $e->getMessage());
+            } catch (Throwable $e) {
+                $conn->rollback();
+                error_log('Error update withdrawal: ' . $e->getMessage());
+                drw_flash('danger', 'Gagal memperbarui status penarikan. Terjadi kesalahan database.');
             }
         }
-        header('Location: kelola_afiliasi.php');
+        header('Location: kelola_afiliasi.php?tab=withdrawals');
         exit();
     }
 
@@ -120,13 +128,157 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtCheck->close();
 
             if ($exists) {
-                drw_flash('danger', 'Kode ' . htmlspecialchars($code) . ' sudah digunakan oleh member lain.');
+                drw_flash('danger', 'Kode ' . $code . ' sudah digunakan oleh member lain.');
             } else {
-                $stmtSet = $conn->prepare('UPDATE user SET affiliate_code = ?, affiliate_code_updated_at = NOW() WHERE id_user = ?');
-                $stmtSet->bind_param('si', $code, $targetUserId);
-                $stmtSet->execute();
-                $stmtSet->close();
-                drw_flash('success', 'Kode afiliasi user #' . $targetUserId . ' berhasil diubah menjadi: ' . htmlspecialchars($code));
+                $targetSql = 'SELECT id_user FROM user WHERE id_user = ?';
+                if ($adminCabangId !== null) {
+                    $targetSql .= ' AND id_cabang = ?';
+                }
+                $targetSql .= ' LIMIT 1';
+                $stmtTarget = $conn->prepare($targetSql);
+                if ($adminCabangId === null) {
+                    $stmtTarget->bind_param('i', $targetUserId);
+                } else {
+                    $stmtTarget->bind_param('ii', $targetUserId, $adminCabangId);
+                }
+                $stmtTarget->execute();
+                $targetExists = (bool) $stmtTarget->get_result()->fetch_assoc();
+                $stmtTarget->close();
+
+                if (!$targetExists) {
+                    drw_flash('danger', 'Member tidak ditemukan atau bukan bagian dari cabang Anda.');
+                } else {
+                    $setCodeSql = 'UPDATE user SET affiliate_code = ?, affiliate_code_updated_at = NOW() WHERE id_user = ?';
+                    if ($adminCabangId !== null) {
+                        $setCodeSql .= ' AND id_cabang = ?';
+                    }
+                    $stmtSet = $conn->prepare($setCodeSql);
+                    if ($adminCabangId === null) {
+                        $stmtSet->bind_param('si', $code, $targetUserId);
+                    } else {
+                        $stmtSet->bind_param('sii', $code, $targetUserId, $adminCabangId);
+                    }
+                    $stmtSet->execute();
+                    $stmtSet->close();
+                    drw_flash('success', 'Kode afiliasi user #' . $targetUserId . ' berhasil diubah menjadi: ' . $code);
+                }
+            }
+        }
+        header('Location: kelola_afiliasi.php?tab=affiliates');
+        exit();
+    }
+
+    // 3) Approve, aktifkan, atau nonaktifkan afiliator
+    if ($action === 'update_affiliate_status') {
+        $targetUserId = (int) ($_POST['target_user_id'] ?? 0);
+        $newStatus = (string) ($_POST['status_afiliasi'] ?? '');
+        $allowedAffiliateStatuses = ['pending', 'aktif', 'nonaktif'];
+
+        if ($targetUserId <= 0 || !in_array($newStatus, $allowedAffiliateStatuses, true)) {
+            drw_flash('danger', 'Status afiliator tidak valid.');
+        } else {
+            $targetSql = 'SELECT id_user, affiliate_code FROM user WHERE id_user = ?';
+            if ($adminCabangId !== null) {
+                $targetSql .= ' AND id_cabang = ?';
+            }
+            $targetSql .= ' LIMIT 1';
+            $stmtTarget = $conn->prepare($targetSql);
+            if ($adminCabangId === null) {
+                $stmtTarget->bind_param('i', $targetUserId);
+            } else {
+                $stmtTarget->bind_param('ii', $targetUserId, $adminCabangId);
+            }
+            $stmtTarget->execute();
+            $target = $stmtTarget->get_result()->fetch_assoc();
+            $stmtTarget->close();
+
+            if (!$target || empty($target['affiliate_code'])) {
+                drw_flash('danger', 'Afiliator tidak ditemukan atau belum memiliki kode afiliasi.');
+            } else {
+                $statusSql = 'UPDATE user SET status_afiliasi = ? WHERE id_user = ?';
+                if ($adminCabangId !== null) {
+                    $statusSql .= ' AND id_cabang = ?';
+                }
+                $stmtStatus = $conn->prepare($statusSql);
+                if ($adminCabangId === null) {
+                    $stmtStatus->bind_param('si', $newStatus, $targetUserId);
+                } else {
+                    $stmtStatus->bind_param('sii', $newStatus, $targetUserId, $adminCabangId);
+                }
+                $stmtStatus->execute();
+                $stmtStatus->close();
+                $statusLabels = ['pending' => 'Pending', 'aktif' => 'Aktif', 'nonaktif' => 'Nonaktif'];
+                drw_flash('success', 'Status afiliator user #' . $targetUserId . ' berhasil diubah menjadi ' . ($statusLabels[$newStatus] ?? $newStatus) . '.');
+            }
+        }
+        header('Location: kelola_afiliasi.php?tab=affiliates');
+        exit();
+    }
+
+    // 4) Koreksi saldo komisi secara manual dengan audit log
+    if ($action === 'adjust_commission') {
+        $targetUserId = (int) ($_POST['target_user_id'] ?? 0);
+        $adjustmentType = (string) ($_POST['adjustment_type'] ?? '');
+        $amount = (int) ($_POST['adjustment_amount'] ?? 0);
+        $note = trim((string) ($_POST['adjustment_note'] ?? ''));
+
+        if ($targetUserId <= 0 || !in_array($adjustmentType, ['credit', 'debit'], true) || $amount < 1 || $amount > 1000000000 || $note === '' || mb_strlen($note) > 255) {
+            drw_flash('danger', 'Data koreksi saldo tidak valid. Nominal dan alasan wajib diisi.');
+        } else {
+            $signedAmount = $adjustmentType === 'debit' ? -$amount : $amount;
+            $conn->begin_transaction();
+            try {
+                $targetSql = 'SELECT id_user FROM user WHERE id_user = ? AND affiliate_code IS NOT NULL';
+                if ($adminCabangId !== null) {
+                    $targetSql .= ' AND id_cabang = ?';
+                }
+                $targetSql .= ' LIMIT 1 FOR UPDATE';
+                $stmtTarget = $conn->prepare($targetSql);
+                if ($adminCabangId === null) {
+                    $stmtTarget->bind_param('i', $targetUserId);
+                } else {
+                    $stmtTarget->bind_param('ii', $targetUserId, $adminCabangId);
+                }
+                $stmtTarget->execute();
+                $targetExists = (bool) $stmtTarget->get_result()->fetch_assoc();
+                $stmtTarget->close();
+
+                if (!$targetExists) {
+                    throw new DomainException('Afiliator tidak ditemukan atau bukan bagian dari cabang Anda.');
+                }
+
+                $updateSql = 'UPDATE user SET total_komisi = total_komisi + ? WHERE id_user = ? AND total_komisi + ? >= 0';
+                if ($adminCabangId !== null) {
+                    $updateSql .= ' AND id_cabang = ?';
+                }
+                $stmtBalance = $conn->prepare($updateSql);
+                if ($adminCabangId === null) {
+                    $stmtBalance->bind_param('iii', $signedAmount, $targetUserId, $signedAmount);
+                } else {
+                    $stmtBalance->bind_param('iiii', $signedAmount, $targetUserId, $signedAmount, $adminCabangId);
+                }
+                $stmtBalance->execute();
+                $changed = $stmtBalance->affected_rows;
+                $stmtBalance->close();
+
+                if ($changed !== 1) {
+                    throw new DomainException('Saldo tidak mencukupi untuk pengurangan tersebut.');
+                }
+
+                $logDesc = ($signedAmount > 0 ? 'Penambahan' : 'Pengurangan') . ' saldo manual oleh admin: ' . $note;
+                $stmtLog = $conn->prepare('INSERT INTO affiliate_log (id_user, tipe, nominal, keterangan) VALUES (?, "koreksi", ?, ?)');
+                $stmtLog->bind_param('iis', $targetUserId, $signedAmount, $logDesc);
+                $stmtLog->execute();
+                $stmtLog->close();
+                $conn->commit();
+                drw_flash('success', 'Saldo komisi user #' . $targetUserId . ' berhasil dikoreksi.');
+            } catch (DomainException $e) {
+                $conn->rollback();
+                drw_flash('danger', $e->getMessage());
+            } catch (Throwable $e) {
+                $conn->rollback();
+                error_log('Error adjust commission: ' . $e->getMessage());
+                drw_flash('danger', 'Gagal mengoreksi saldo komisi. Terjadi kesalahan database.');
             }
         }
         header('Location: kelola_afiliasi.php?tab=affiliates');
@@ -138,48 +290,123 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stats = [
     'pending_wd_count' => 0,
     'pending_wd_amount' => 0,
+    'pending_affiliate_count' => 0,
     'total_paid_commissions' => 0,
     'total_affiliates' => 0,
     'total_referral_orders' => 0,
 ];
 
 // Hitung pending withdrawals
-$res = $conn->query("SELECT COUNT(*) AS count, COALESCE(SUM(nominal), 0) AS total FROM affiliate_withdrawal WHERE status = 'pending'");
-if ($row = $res->fetch_assoc()) {
+$pendingWdSql = "SELECT COUNT(*) AS count, COALESCE(SUM(w.nominal), 0) AS total
+                 FROM affiliate_withdrawal w
+                 JOIN user u ON u.id_user = w.id_user
+                 WHERE w.status = 'pending'";
+if ($adminCabangId !== null) {
+    $pendingWdSql .= ' AND u.id_cabang = ?';
+}
+$stmtPendingWd = $conn->prepare($pendingWdSql);
+if ($adminCabangId === null) {
+    $stmtPendingWd->execute();
+} else {
+    $stmtPendingWd->bind_param('i', $adminCabangId);
+    $stmtPendingWd->execute();
+}
+if ($row = $stmtPendingWd->get_result()->fetch_assoc()) {
     $stats['pending_wd_count'] = (int) $row['count'];
     $stats['pending_wd_amount'] = (int) $row['total'];
 }
-$res->close();
+$stmtPendingWd->close();
+
+// Hitung afiliator yang menunggu approval
+$pendingAffiliateSql = "SELECT COUNT(*) AS total FROM user WHERE affiliate_code IS NOT NULL AND status_afiliasi = 'pending'";
+if ($adminCabangId !== null) {
+    $pendingAffiliateSql .= ' AND id_cabang = ?';
+}
+$stmtPendingAffiliate = $conn->prepare($pendingAffiliateSql);
+if ($adminCabangId === null) {
+    $stmtPendingAffiliate->execute();
+} else {
+    $stmtPendingAffiliate->bind_param('i', $adminCabangId);
+    $stmtPendingAffiliate->execute();
+}
+if ($row = $stmtPendingAffiliate->get_result()->fetch_assoc()) {
+    $stats['pending_affiliate_count'] = (int) $row['total'];
+}
+$stmtPendingAffiliate->close();
 
 // Total komisi dibayarkan
-$res = $conn->query("SELECT COALESCE(SUM(komisi_nominal), 0) AS total FROM `order` WHERE komisi_status = 'paid'");
-if ($row = $res->fetch_assoc()) {
+$paidCommissionSql = "SELECT COALESCE(SUM(o.komisi_nominal), 0) AS total
+                      FROM `order` o
+                      JOIN user u_ref ON u_ref.id_user = o.referrer_id
+                      WHERE o.komisi_status = 'paid'";
+if ($adminCabangId !== null) {
+    $paidCommissionSql .= ' AND u_ref.id_cabang = ?';
+}
+$stmtPaidCommission = $conn->prepare($paidCommissionSql);
+if ($adminCabangId === null) {
+    $stmtPaidCommission->execute();
+} else {
+    $stmtPaidCommission->bind_param('i', $adminCabangId);
+    $stmtPaidCommission->execute();
+}
+if ($row = $stmtPaidCommission->get_result()->fetch_assoc()) {
     $stats['total_paid_commissions'] = (int) $row['total'];
 }
-$res->close();
+$stmtPaidCommission->close();
 
-// Total member yang memiliki kode afiliasi
-$res = $conn->query("SELECT COUNT(*) AS total FROM user WHERE affiliate_code IS NOT NULL");
-if ($row = $res->fetch_assoc()) {
+// Total afiliator yang sudah disetujui
+$affiliateCountSql = "SELECT COUNT(*) AS total FROM user WHERE affiliate_code IS NOT NULL AND status_afiliasi = 'aktif'";
+if ($adminCabangId !== null) {
+    $affiliateCountSql .= ' AND id_cabang = ?';
+}
+$stmtAffiliateCount = $conn->prepare($affiliateCountSql);
+if ($adminCabangId === null) {
+    $stmtAffiliateCount->execute();
+} else {
+    $stmtAffiliateCount->bind_param('i', $adminCabangId);
+    $stmtAffiliateCount->execute();
+}
+if ($row = $stmtAffiliateCount->get_result()->fetch_assoc()) {
     $stats['total_affiliates'] = (int) $row['total'];
 }
-$res->close();
+$stmtAffiliateCount->close();
 
 // Total booking referral
-$res = $conn->query("SELECT COUNT(*) AS total FROM `order` WHERE referred_by IS NOT NULL");
-if ($row = $res->fetch_assoc()) {
+$referralOrderCountSql = "SELECT COUNT(*) AS total
+                          FROM `order` o
+                          JOIN user u_ref ON u_ref.id_user = o.referrer_id
+                          WHERE o.referred_by IS NOT NULL";
+if ($adminCabangId !== null) {
+    $referralOrderCountSql .= ' AND u_ref.id_cabang = ?';
+}
+$stmtReferralOrderCount = $conn->prepare($referralOrderCountSql);
+if ($adminCabangId === null) {
+    $stmtReferralOrderCount->execute();
+} else {
+    $stmtReferralOrderCount->bind_param('i', $adminCabangId);
+    $stmtReferralOrderCount->execute();
+}
+if ($row = $stmtReferralOrderCount->get_result()->fetch_assoc()) {
     $stats['total_referral_orders'] = (int) $row['total'];
 }
-$res->close();
+$stmtReferralOrderCount->close();
 
 // Tab aktif dari URL
-$activeTab = $_GET['tab'] ?? 'withdrawals';
+$activeTab = (string) ($_GET['tab'] ?? 'withdrawals');
+if (!in_array($activeTab, ['withdrawals', 'affiliates', 'orders'], true)) {
+    $activeTab = 'withdrawals';
+}
 
 // 1) List Permintaan Penarikan (Withdrawals)
-$filterWdStatus = $_GET['wd_status'] ?? 'all';
-$wdWhere = [];
+$filterWdStatus = (string) ($_GET['wd_status'] ?? 'all');
+$wdWhere = ['u.affiliate_code IS NOT NULL'];
 $wdParams = [];
 $wdTypes = '';
+if ($adminCabangId !== null) {
+    $wdWhere[] = 'u.id_cabang = ?';
+    $wdTypes .= 'i';
+    $wdParams[] = $adminCabangId;
+}
 if (in_array($filterWdStatus, ['pending', 'approved', 'completed', 'rejected'], true)) {
     $wdWhere[] = 'w.status = ?';
     $wdTypes .= 's';
@@ -188,7 +415,7 @@ if (in_array($filterWdStatus, ['pending', 'approved', 'completed', 'rejected'], 
 $wdSql = '
     SELECT w.id_withdrawal, w.id_user, w.nominal, w.tipe_tujuan, w.nama_bank, w.nomor_rekening,
            w.nama_pemilik, w.status, w.catatan_admin, w.tanggal_pengajuan, w.tanggal_diproses,
-           u.nama_lengkap, u.username, u.no_telepon, u.affiliate_code
+           u.nama_lengkap, u.username, u.no_telepon, u.affiliate_code, u.status_afiliasi
     FROM affiliate_withdrawal w
     JOIN user u ON u.id_user = w.id_user
 ';
@@ -210,14 +437,25 @@ $searchAff = trim((string) ($_GET['search_aff'] ?? ''));
 $affWhere = ['u.affiliate_code IS NOT NULL'];
 $affParams = [];
 $affTypes = '';
+if ($adminCabangId !== null) {
+    $affWhere[] = 'u.id_cabang = ?';
+    $affTypes .= 'i';
+    $affParams[] = $adminCabangId;
+}
+$filterAffStatus = (string) ($_GET['aff_status'] ?? 'all');
+if (in_array($filterAffStatus, ['pending', 'aktif', 'nonaktif'], true)) {
+    $affWhere[] = 'u.status_afiliasi = ?';
+    $affTypes .= 's';
+    $affParams[] = $filterAffStatus;
+}
 if ($searchAff !== '') {
     $affLike = '%' . $searchAff . '%';
     $affWhere[] = '(u.nama_lengkap LIKE ? OR u.username LIKE ? OR u.affiliate_code LIKE ? OR u.no_telepon LIKE ?)';
     $affTypes .= 'ssss';
-    $affParams = [$affLike, $affLike, $affLike, $affLike];
+    $affParams = array_merge($affParams, [$affLike, $affLike, $affLike, $affLike]);
 }
 $affSql = '
-    SELECT u.id_user, u.nama_lengkap, u.username, u.no_telepon, u.affiliate_code,
+    SELECT u.id_user, u.nama_lengkap, u.username, u.no_telepon, u.affiliate_code, u.status_afiliasi,
            u.total_komisi, u.total_ditarik, u.total_referral, u.tanggal_daftar,
            c.nama_cabang
     FROM user u
@@ -235,25 +473,37 @@ $affiliates = $stmtAff->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmtAff->close();
 
 // 3) List Booking Berkomisi
+$orderCommWhere = ['o.referred_by IS NOT NULL'];
+$orderCommParams = [];
+$orderCommTypes = '';
+if ($adminCabangId !== null) {
+    $orderCommWhere[] = 'u_ref.id_cabang = ?';
+    $orderCommTypes = 'i';
+    $orderCommParams[] = $adminCabangId;
+}
 $orderCommSql = '
     SELECT o.id_order, o.referred_by, o.komisi_nominal, o.komisi_status, o.total_bayar,
            o.tanggal_treatment, o.status_order,
            l.nama_layanan, l.harga,
            c.nama_cabang,
            u_pat.nama_lengkap AS patient_name,
-           u_ref.nama_lengkap AS referrer_name, u_ref.id_user AS referrer_id
+            u_ref.nama_lengkap AS referrer_name, u_ref.id_user AS referrer_id
     FROM `order` o
     JOIN layanan l ON l.id_layanan = o.id_layanan
     LEFT JOIN cabang c ON c.id_cabang = o.id_cabang
     JOIN user u_pat ON u_pat.id_user = o.id_user
     LEFT JOIN user u_ref ON u_ref.id_user = o.referrer_id
-    WHERE o.referred_by IS NOT NULL
+    WHERE ' . implode(' AND ', $orderCommWhere) . '
     ORDER BY o.id_order DESC
     LIMIT 100
 ';
-$resComm = $conn->query($orderCommSql);
-$commissionOrders = $resComm ? $resComm->fetch_all(MYSQLI_ASSOC) : [];
-if ($resComm) $resComm->close();
+$stmtComm = $conn->prepare($orderCommSql);
+if ($orderCommTypes !== '') {
+    $stmtComm->bind_param($orderCommTypes, ...$orderCommParams);
+}
+$stmtComm->execute();
+$commissionOrders = $stmtComm->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmtComm->close();
 
 // Sidebar badges
 if ($adminCabangId === null) {
@@ -267,10 +517,7 @@ if ($adminCabangId === null) {
     $pending_orders = (int) ($stmt->get_result()->fetch_assoc()['total'] ?? 0);
     $stmt->close();
 }
-
-$pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
-$pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? (int) $pending_testimoni_query->fetch_assoc()['total'] : 0;
-if ($pending_testimoni_query) $pending_testimoni_query->close();
+$pending_withdrawals = (int) $stats['pending_wd_count'];
 
 $flash = drw_consume_flash();
 ?>
@@ -279,7 +526,7 @@ $flash = drw_consume_flash();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kelola Afiliasi - Admin <?php echo NAMA_KLINIK; ?></title>
+    <title>Afiliator - Admin <?php echo NAMA_KLINIK; ?></title>
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link href="../css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
@@ -334,17 +581,12 @@ $flash = drw_consume_flash();
                 </li>
                 <li class="nav-item">
                     <a class="nav-link active" href="kelola_afiliasi.php">
-                        <i class="fas fa-handshake"></i> Kelola Afiliasi
-                        <?php if ($stats['pending_wd_count'] > 0): ?>
-                            <span class="badge bg-warning text-dark ms-1"><?php echo $stats['pending_wd_count']; ?></span>
+                        <i class="fas fa-handshake"></i> Afiliator
+                        <?php if ($stats['pending_affiliate_count'] > 0): ?>
+                            <span class="badge bg-warning text-dark ms-1" title="Menunggu approval"><?php echo $stats['pending_affiliate_count']; ?></span>
                         <?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="kelola_testimoni.php">
-                        <i class="fas fa-comment-dots"></i> Kelola Testimoni
-                        <?php if ($pending_testimoni > 0): ?>
-                            <span class="badge bg-warning ms-1"><?php echo $pending_testimoni; ?></span>
+                        <?php if ($stats['pending_wd_count'] > 0): ?>
+                            <span class="badge bg-info text-dark ms-1" title="Penarikan pending"><?php echo $stats['pending_wd_count']; ?></span>
                         <?php endif; ?>
                     </a>
                 </li>
@@ -366,7 +608,7 @@ $flash = drw_consume_flash();
 
         <div class="admin-main-content">
             <header class="admin-header">
-                <h1 class="h4 mb-0 text-gray-800">Kelola Program Afiliasi & Penarikan</h1>
+                <h1 class="h4 mb-0 text-gray-800">Manajemen Afiliator & Penarikan</h1>
                 <div class="user-info">
                     <span class="badge bg-light text-dark border me-2"><i class="fas fa-clinic-medical me-1"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     <span class="text-muted me-2">Admin:</span>
@@ -525,12 +767,12 @@ $flash = drw_consume_flash();
                                                                         </div>
                                                                         <div class="mb-3">
                                                                             <label class="form-label fw-semibold">Pilih Status Baru</label>
-                                                                            <select name="status" class="form-select" required>
-                                                                                <option value="pending" <?php echo $w['status'] === 'pending' ? 'selected' : ''; ?>>Pending (Menunggu)</option>
-                                                                                <option value="approved" <?php echo $w['status'] === 'approved' ? 'selected' : ''; ?>>Approved (Sedang Ditransfer)</option>
-                                                                                <option value="completed" <?php echo $w['status'] === 'completed' ? 'selected' : ''; ?>>Completed (Selesai Ditransfer)</option>
-                                                                                <option value="rejected" <?php echo $w['status'] === 'rejected' ? 'selected' : ''; ?>>Rejected (Tolak & Refund Saldo)</option>
-                                                                            </select>
+                                                                             <?php $nextStatuses = ['pending' => ['pending', 'approved', 'rejected'], 'approved' => ['approved', 'completed', 'rejected'], 'completed' => ['completed'], 'rejected' => ['rejected']][(string) $w['status']] ?? []; ?>
+                                                                             <select name="status" class="form-select" required>
+                                                                                 <?php foreach ($nextStatuses as $nextStatus): ?>
+                                                                                     <option value="<?php echo htmlspecialchars($nextStatus); ?>" <?php echo $w['status'] === $nextStatus ? 'selected' : ''; ?>><?php echo $nextStatus === 'pending' ? 'Pending (Menunggu)' : ($nextStatus === 'approved' ? 'Approved (Sedang Ditransfer)' : ($nextStatus === 'completed' ? 'Completed (Selesai Ditransfer)' : 'Rejected (Tolak & Refund Saldo)')); ?></option>
+                                                                                 <?php endforeach; ?>
+                                                                             </select>
                                                                             <div class="form-text">Jika memilih <em>Rejected</em>, saldo sebesar Rp <?php echo number_format((int) $w['nominal'], 0, ',', '.'); ?> akan otomatis dikembalikan ke akun member.</div>
                                                                         </div>
                                                                         <div class="mb-3">
@@ -570,6 +812,12 @@ $flash = drw_consume_flash();
                                     </form>
                                 </div>
                             </div>
+                            <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Filter status afiliator">
+                                <a href="kelola_afiliasi.php?tab=affiliates&amp;aff_status=all" class="btn btn-outline-secondary <?php echo $filterAffStatus === 'all' ? 'active' : ''; ?>">Semua</a>
+                                <a href="kelola_afiliasi.php?tab=affiliates&amp;aff_status=pending" class="btn btn-outline-warning <?php echo $filterAffStatus === 'pending' ? 'active' : ''; ?>">Pending<?php if ($stats['pending_affiliate_count'] > 0): ?> (<?php echo $stats['pending_affiliate_count']; ?>)<?php endif; ?></a>
+                                <a href="kelola_afiliasi.php?tab=affiliates&amp;aff_status=aktif" class="btn btn-outline-success <?php echo $filterAffStatus === 'aktif' ? 'active' : ''; ?>">Aktif</a>
+                                <a href="kelola_afiliasi.php?tab=affiliates&amp;aff_status=nonaktif" class="btn btn-outline-danger <?php echo $filterAffStatus === 'nonaktif' ? 'active' : ''; ?>">Nonaktif</a>
+                            </div>
 
                             <div class="table-responsive">
                                 <table class="table table-bordered table-hover align-middle">
@@ -577,6 +825,7 @@ $flash = drw_consume_flash();
                                         <tr>
                                             <th>ID</th>
                                             <th>Afiliator</th>
+                                            <th>Status</th>
                                             <th>Kode Afiliasi</th>
                                             <th>Klinik</th>
                                             <th>Saldo Komisi</th>
@@ -588,7 +837,7 @@ $flash = drw_consume_flash();
                                     <tbody>
                                         <?php if (empty($affiliates)): ?>
                                             <tr>
-                                                <td colspan="8" class="text-center py-4 text-muted">Belum ada afiliator ditemukan.</td>
+                                                <td colspan="9" class="text-center py-4 text-muted">Belum ada afiliator ditemukan.</td>
                                             </tr>
                                         <?php else: ?>
                                             <?php foreach ($affiliates as $aff): ?>
@@ -602,6 +851,15 @@ $flash = drw_consume_flash();
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>
+                                                        <?php if ($aff['status_afiliasi'] === 'aktif'): ?>
+                                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Aktif</span>
+                                                        <?php elseif ($aff['status_afiliasi'] === 'nonaktif'): ?>
+                                                            <span class="badge bg-danger"><i class="fas fa-ban me-1"></i>Nonaktif</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
                                                         <span class="badge bg-warning text-dark font-monospace fs-6 px-2 py-1"><?php echo htmlspecialchars((string) $aff['affiliate_code']); ?></span>
                                                     </td>
                                                     <td><small><?php echo htmlspecialchars((string) ($aff['nama_cabang'] ?? '-')); ?></small></td>
@@ -609,8 +867,22 @@ $flash = drw_consume_flash();
                                                     <td>Rp <?php echo number_format((int) $aff['total_ditarik'], 0, ',', '.'); ?></td>
                                                     <td><span class="badge bg-info text-dark"><?php echo number_format((int) $aff['total_referral'], 0, ',', '.'); ?> pasien</span></td>
                                                     <td class="text-center">
+                                                        <form method="POST" action="kelola_afiliasi.php?tab=affiliates" class="d-flex gap-1 mb-2">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+                                                            <input type="hidden" name="action" value="update_affiliate_status">
+                                                            <input type="hidden" name="target_user_id" value="<?php echo (int) $aff['id_user']; ?>">
+                                                            <select name="status_afiliasi" class="form-select form-select-sm" aria-label="Status afiliator">
+                                                                <option value="pending" <?php echo $aff['status_afiliasi'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                                                                <option value="aktif" <?php echo $aff['status_afiliasi'] === 'aktif' ? 'selected' : ''; ?>>Approve / Aktif</option>
+                                                                <option value="nonaktif" <?php echo $aff['status_afiliasi'] === 'nonaktif' ? 'selected' : ''; ?>>Nonaktif</option>
+                                                            </select>
+                                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Simpan status"><i class="fas fa-check"></i></button>
+                                                        </form>
                                                         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditCode<?php echo (int) $aff['id_user']; ?>" title="Ubah Kode Afiliasi">
                                                             <i class="fas fa-tag me-1"></i> Edit Kode
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAdjustCommission<?php echo (int) $aff['id_user']; ?>" title="Koreksi Saldo Komisi">
+                                                            <i class="fas fa-wallet me-1"></i> Saldo
                                                         </button>
 
                                                         <!-- Modal Edit Kode Afiliasi -->
@@ -635,6 +907,46 @@ $flash = drw_consume_flash();
                                                                     <div class="modal-footer">
                                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                                                                         <button type="submit" class="btn btn-primary">Simpan Kode</button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Modal Koreksi Saldo Komisi -->
+                                                        <div class="modal fade" id="modalAdjustCommission<?php echo (int) $aff['id_user']; ?>" tabindex="-1" aria-hidden="true">
+                                                            <div class="modal-dialog text-start">
+                                                                <form method="POST" action="kelola_afiliasi.php?tab=affiliates" class="modal-content">
+                                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+                                                                    <input type="hidden" name="action" value="adjust_commission">
+                                                                    <input type="hidden" name="target_user_id" value="<?php echo (int) $aff['id_user']; ?>">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title fw-bold">Koreksi Saldo Komisi</h5>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <p class="small text-muted mb-2">Afiliator: <strong><?php echo htmlspecialchars((string) $aff['nama_lengkap']); ?></strong></p>
+                                                                        <p class="small mb-3">Saldo saat ini: <strong class="text-success">Rp <?php echo number_format((int) $aff['total_komisi'], 0, ',', '.'); ?></strong></p>
+                                                                        <div class="row g-2 mb-3">
+                                                                            <div class="col-md-5">
+                                                                                <label class="form-label fw-semibold">Jenis</label>
+                                                                                <select name="adjustment_type" class="form-select" required>
+                                                                                    <option value="credit">Tambah Saldo</option>
+                                                                                    <option value="debit">Kurangi Saldo</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div class="col-md-7">
+                                                                                <label class="form-label fw-semibold">Nominal (Rp)</label>
+                                                                                <input type="number" name="adjustment_amount" class="form-control" min="1" max="1000000000" step="1" required>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label class="form-label fw-semibold">Alasan</label>
+                                                                            <textarea name="adjustment_note" class="form-control" rows="3" maxlength="255" placeholder="Contoh: Koreksi komisi transaksi #123" required></textarea>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                                        <button type="submit" class="btn btn-primary">Simpan Koreksi</button>
                                                                     </div>
                                                                 </form>
                                                             </div>

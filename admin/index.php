@@ -42,17 +42,34 @@ if ($adminCabangId === null) {
     $stmt->close();
 }
 
-$pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
-$pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
-// $pending_testimoni_query->close(); // Sudah ditutup di file sidebar/navigasi sebelumnya jika ini duplikat
+$pending_affiliates_query_sql = "SELECT COUNT(*) as total FROM user WHERE affiliate_code IS NOT NULL AND status_afiliasi = 'pending'";
+if ($adminCabangId === null) {
+    $pending_affiliates_query = $conn->query($pending_affiliates_query_sql);
+    $pending_affiliates = ($pending_affiliates_query && $pending_affiliates_query->num_rows > 0) ? (int) $pending_affiliates_query->fetch_assoc()['total'] : 0;
+    if ($pending_affiliates_query) $pending_affiliates_query->close();
+} else {
+    $stmt = $conn->prepare($pending_affiliates_query_sql . ' AND id_cabang = ?');
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $pending_affiliates = (int) ($stmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $stmt->close();
+}
 
 $total_layanan_query = $conn->query("SELECT COUNT(*) as total FROM layanan WHERE status_layanan = 'aktif'");
 $total_layanan_aktif = ($total_layanan_query && $total_layanan_query->num_rows > 0) ? $total_layanan_query->fetch_assoc()['total'] : 0;
 if($total_layanan_query) $total_layanan_query->close();
 
-$pending_withdrawals_query = $conn->query("SELECT COUNT(*) as total FROM affiliate_withdrawal WHERE status = 'pending'");
-$pending_withdrawals = ($pending_withdrawals_query && $pending_withdrawals_query->num_rows > 0) ? (int) $pending_withdrawals_query->fetch_assoc()['total'] : 0;
-if($pending_withdrawals_query) $pending_withdrawals_query->close();
+if ($adminCabangId === null) {
+    $pending_withdrawals_query = $conn->query("SELECT COUNT(*) as total FROM affiliate_withdrawal WHERE status = 'pending'");
+    $pending_withdrawals = ($pending_withdrawals_query && $pending_withdrawals_query->num_rows > 0) ? (int) $pending_withdrawals_query->fetch_assoc()['total'] : 0;
+    if($pending_withdrawals_query) $pending_withdrawals_query->close();
+} else {
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM affiliate_withdrawal w JOIN user u ON u.id_user = w.id_user WHERE w.status = 'pending' AND u.id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $pending_withdrawals = (int) ($stmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $stmt->close();
+}
 
 $conn->close();
 ?>
@@ -295,17 +312,12 @@ $conn->close();
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="kelola_afiliasi.php">
-                        <i class="fas fa-handshake"></i> Kelola Afiliasi
-                        <?php if ($pending_withdrawals > 0): ?>
-                            <span class="badge bg-warning text-dark ms-1"><?php echo $pending_withdrawals; ?></span>
+                        <i class="fas fa-handshake"></i> Afiliator
+                        <?php if ($pending_affiliates > 0): ?>
+                            <span class="badge bg-warning text-dark ms-1" title="Menunggu approval"><?php echo $pending_affiliates; ?></span>
                         <?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="kelola_testimoni.php">
-                        <i class="fas fa-comment-dots"></i> Kelola Testimoni
-                        <?php if ($pending_testimoni > 0): ?>
-                            <span class="badge bg-warning ms-1"><?php echo $pending_testimoni; ?></span>
+                        <?php if ($pending_withdrawals > 0): ?>
+                            <span class="badge bg-info text-dark ms-1" title="Penarikan pending"><?php echo $pending_withdrawals; ?></span>
                         <?php endif; ?>
                     </a>
                 </li>
@@ -393,11 +405,11 @@ $conn->close();
                     <div class="col-xl-3 col-md-6 mb-4">
                         <div class="card stat-card-enhanced stat-card-warning">
                             <div class="card-body">
-                                <div class="text-xs text-warning">Testimoni Pending</div>
-                                <div class="h3 text-gray-800"><?php echo $pending_testimoni; ?></div>
-                                <i class="fas fa-comments stat-icon"></i>
+                                <div class="text-xs text-warning">Afiliator Menunggu Approval</div>
+                                <div class="h3 text-gray-800"><?php echo $pending_affiliates; ?></div>
+                                <i class="fas fa-handshake stat-icon"></i>
                             </div>
-                             <a href="kelola_testimoni.php?filter_status=pending" class="card-footer d-flex align-items-center justify-content-between">
+                             <a href="kelola_afiliasi.php?tab=affiliates&amp;aff_status=pending" class="card-footer d-flex align-items-center justify-content-between">
                                 <span>Lihat Detail</span> <i class="fas fa-arrow-circle-right"></i>
                             </a>
                         </div>
@@ -425,10 +437,10 @@ $conn->close();
                         </a>
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="kelola_testimoni.php?filter_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
+                        <a href="kelola_afiliasi.php?tab=withdrawals&wd_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
                             <div class="card-body">
-                                <i class="fas fa-comment-medical text-info"></i>
-                                <h6 class="card-title">Moderasi Testimoni (<?php echo $pending_testimoni; ?>)</h6>
+                                <i class="fas fa-money-check-alt text-success"></i>
+                                <h6 class="card-title">Penarikan Afiliasi (<?php echo $pending_withdrawals; ?>)</h6>
                             </div>
                         </a>
                     </div>
