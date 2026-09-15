@@ -119,8 +119,9 @@ $memberByAidoPmrId = [];
 $memberByName = []; // norm name => [id_user,...]
 $fh = fopen($patientsPath, 'r');
 $nPat = 0;
-$stmtSel = $conn->prepare('SELECT id_user FROM user WHERE aido_mr = ? LIMIT 1');
-$stmtIns = $conn->prepare("INSERT INTO user (nama_lengkap, username, password, email, no_telepon, alamat, aido_mr, auth_provider) VALUES (?, ?, NULL, ?, ?, ?, ?, 'local') ON DUPLICATE KEY UPDATE nama_lengkap = VALUES(nama_lengkap), email = VALUES(email), no_telepon = VALUES(no_telepon), alamat = VALUES(alamat), aido_mr = VALUES(aido_mr)");
+$stmtSel = $conn->prepare('SELECT id_user, username FROM user WHERE aido_mr = ? LIMIT 1');
+$stmtUpd = $conn->prepare('UPDATE user SET nama_lengkap = ?, email = ?, no_telepon = ?, alamat = ?, id_cabang = ? WHERE aido_mr = ?');
+$stmtIns = $conn->prepare('INSERT INTO user (nama_lengkap, username, password, email, no_telepon, alamat, aido_mr, id_cabang, auth_provider) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, \'local\')');
 $conn->begin_transaction();
 try {
     while (($line = fgets($fh)) !== false) {
@@ -150,14 +151,17 @@ try {
         if ($alamatV === '') {
             $alamatV = null;
         }
-        $stmtIns->bind_param('ssssss', $nama, $username, $emailV, $phoneV, $alamatV, $mr);
-        $stmtIns->execute();
-        $idUser = (int) $stmtIns->insert_id;
-        if ($idUser === 0) {
-            $stmtSel->bind_param('s', $mr);
-            $stmtSel->execute();
-            $row = $stmtSel->get_result()->fetch_assoc();
-            $idUser = $row ? (int) $row['id_user'] : 0;
+        $stmtSel->bind_param('s', $mr);
+        $stmtSel->execute();
+        $row = $stmtSel->get_result()->fetch_assoc();
+        if ($row) {
+            $idUser = (int) $row['id_user'];
+            $stmtUpd->bind_param('sssssi', $nama, $emailV, $phoneV, $alamatV, $cabangId, $mr);
+            $stmtUpd->execute();
+        } else {
+            $stmtIns->bind_param('ssssssi', $nama, $username, $emailV, $phoneV, $alamatV, $mr, $cabangId);
+            $stmtIns->execute();
+            $idUser = (int) $stmtIns->insert_id;
         }
         if ($idUser > 0) {
             $aidoUuid = trim((string) ($p['uuid'] ?? ''));
@@ -182,6 +186,7 @@ try {
 }
 fclose($fh);
 $stmtSel->close();
+$stmtUpd->close();
 $stmtIns->close();
 fwrite(STDOUT, "Member AIDO diproses: {$nPat}\n");
 
@@ -215,7 +220,7 @@ while (($line = fgets($fh)) !== false) {
 fclose($fh);
 
 $stmtStubSel = $conn->prepare('SELECT id_user FROM user WHERE username = ? LIMIT 1');
-$stmtStubIns = $conn->prepare("INSERT INTO user (nama_lengkap, username, password, auth_provider) VALUES (?, ?, NULL, 'local') ON DUPLICATE KEY UPDATE nama_lengkap = VALUES(nama_lengkap)");
+$stmtStubIns = $conn->prepare("INSERT INTO user (nama_lengkap, username, password, id_cabang, auth_provider) VALUES (?, ?, NULL, ?, 'local') ON DUPLICATE KEY UPDATE nama_lengkap = VALUES(nama_lengkap), id_cabang = VALUES(id_cabang)");
 
 // 2) Impor order (dedup pasangan registration+trx).
 $fh = fopen($visitsPath, 'r');
@@ -272,7 +277,7 @@ try {
                 if ($stubNama === '') {
                     $stubNama = $stubUsername;
                 }
-                $stmtStubIns->bind_param('ss', $stubNama, $stubUsername);
+                $stmtStubIns->bind_param('ssi', $stubNama, $stubUsername, $cabangId);
                 $stmtStubIns->execute();
                 $idUser = (int) $stmtStubIns->insert_id;
             }

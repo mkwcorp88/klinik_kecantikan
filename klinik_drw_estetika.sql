@@ -18,12 +18,14 @@ CREATE TABLE `user` (
   `no_telepon` varchar(20) DEFAULT NULL,
   `alamat` text DEFAULT NULL,
   `aido_mr` varchar(50) DEFAULT NULL COMMENT 'Nomor MR dari AIDO, unik per pasien',
+  `id_cabang` int(11) DEFAULT NULL COMMENT 'Cabang utama member',
   `tanggal_daftar` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_user`),
   UNIQUE KEY `username_unique` (`username`),
   UNIQUE KEY `google_sub_unique` (`google_sub`),
   UNIQUE KEY `google_email_unique` (`google_email`),
-  UNIQUE KEY `uq_user_aido_mr` (`aido_mr`)
+  UNIQUE KEY `uq_user_aido_mr` (`aido_mr`),
+  KEY `idx_user_cabang` (`id_cabang`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `cabang` (
@@ -42,6 +44,9 @@ INSERT INTO `cabang` (`slug`, `nama_cabang`, `status_cabang`) VALUES
   ('purworejo', 'Klinik DRW Estetika Purworejo', 'aktif'),
   ('kutoarjo', 'Klinik DRW Estetika Kutoarjo', 'aktif'),
   ('magelang', 'Klinik DRW Estetika Magelang', 'aktif');
+
+ALTER TABLE `user`
+  ADD CONSTRAINT `fk_user_cabang` FOREIGN KEY (`id_cabang`) REFERENCES `cabang` (`id_cabang`) ON UPDATE CASCADE ON DELETE SET NULL;
 
 CREATE TABLE `layanan` (
   `id_layanan` int(11) NOT NULL AUTO_INCREMENT,

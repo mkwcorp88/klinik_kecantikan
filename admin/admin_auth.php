@@ -22,8 +22,12 @@ function drw_require_admin(): void
 
 function drw_admin_cabang_id(): ?int
 {
-    if (!isset($_SESSION['admin_cabang_id']) || $_SESSION['admin_cabang_id'] === null || $_SESSION['admin_cabang_id'] === '') {
+    if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
         return null;
+    }
+    if (!isset($_SESSION['admin_cabang_id']) || $_SESSION['admin_cabang_id'] === null || $_SESSION['admin_cabang_id'] === '') {
+        // Fail closed for non-super admins; require explicit session scope.
+        return drw_admin_is_super() ? null : -1;
     }
 
     return (int) $_SESSION['admin_cabang_id'];

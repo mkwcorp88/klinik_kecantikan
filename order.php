@@ -22,7 +22,7 @@ if (!isset($_SESSION['booking_form_token']) || !is_string($_SESSION['booking_for
 }
 $bookingFormToken = $_SESSION['booking_form_token'];
 
-$statement = $conn->prepare('SELECT nama_lengkap, no_telepon FROM user WHERE id_user = ? LIMIT 1');
+$statement = $conn->prepare('SELECT nama_lengkap, no_telepon, id_cabang FROM user WHERE id_user = ? LIMIT 1');
 $statement->bind_param('i', $userId);
 $statement->execute();
 $patient = $statement->get_result()->fetch_assoc();
@@ -113,9 +113,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($errors === []) {
         $normalizedPhone = preg_replace('/[\s()-]/', '', $phone);
+        $userUpdateFields = [];
+        $userUpdateTypes = '';
+        $userUpdateParams = [];
         if ($normalizedPhone !== ($patient['no_telepon'] ?? '')) {
-            $statement = $conn->prepare('UPDATE user SET no_telepon = ? WHERE id_user = ?');
-            $statement->bind_param('si', $normalizedPhone, $userId);
+            $userUpdateFields[] = 'no_telepon = ?';
+            $userUpdateTypes .= 's';
+            $userUpdateParams[] = $normalizedPhone;
+        }
+        if (empty($patient['id_cabang'])) {
+            $userUpdateFields[] = 'id_cabang = ?';
+            $userUpdateTypes .= 'i';
+            $userUpdateParams[] = $selectedBranchId;
+        }
+        if ($userUpdateFields !== []) {
+            $userUpdateParams[] = $userId;
+            $userUpdateTypes .= 'i';
+            $statement = $conn->prepare('UPDATE user SET ' . implode(', ', $userUpdateFields) . ' WHERE id_user = ?');
+            $statement->bind_param($userUpdateTypes, ...$userUpdateParams);
             $statement->execute();
             $statement->close();
         }

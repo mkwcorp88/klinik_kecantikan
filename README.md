@@ -51,9 +51,14 @@ Jika aplikasi berjalan di belakang reverse proxy yang mengakhiri HTTPS, set `TRU
 
 ## Migrasi Database Lama
 
-Untuk database lama, buat backup lalu jalankan `migrations/001_google_oauth_and_cabang.sql` satu kali. Migrasi menambahkan kolom Login Google, tabel cabang, hubungan booking-cabang, dan status testimoni `rejected`.
+Untuk database lama, buat backup lalu jalankan migrasi berikut **berurutan**:
 
-Jangan menjalankan migrasi tersebut setelah mengimpor `klinik_drw_estetika.sql`, karena bootstrap sudah memiliki seluruh struktur terbaru.
+1. `migrations/001_google_oauth_and_cabang.sql` — menambahkan kolom Login Google, tabel cabang, hubungan booking-cabang, dan status testimoni `rejected`.
+2. `migrations/002_admin_per_cabang.sql` — admin per klinik.
+3. `migrations/003_aido_import.sql` — kolom `aido_mr` dan indeks untuk impor AIDO Purworejo.
+4. `migrations/004_member_cabang.sql` — kolom `id_cabang` pada tabel `user`, foreign key, dan pengisian cabang utama untuk member AIDO yang sudah ada.
+
+Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi 001–004 setelah mengimpor `klinik_drw_estetika.sql` (bootstrap sudah lengkap).
 
 ## Konfigurasi Login Google
 
