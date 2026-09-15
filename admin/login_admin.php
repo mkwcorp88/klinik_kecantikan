@@ -147,7 +147,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                     <div class="mb-3">
                         <label for="id_cabang" class="form-label">Pilih Klinik</label>
-                        <select class="form-select" id="id_cabang" name="id_cabang" required>
+                        <select class="form-select" id="id_cabang" name="id_cabang">
                             <option value="" <?php echo $selectedCabang === '' ? 'selected' : ''; ?>>Semua Klinik (superadmin)</option>
                             <?php foreach ($branches as $branch): ?>
                                 <option value="<?php echo (int) $branch['id_cabang']; ?>" <?php echo $selectedCabang === (string) $branch['id_cabang'] ? 'selected' : ''; ?>>

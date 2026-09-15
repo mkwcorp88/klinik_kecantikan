@@ -7,7 +7,8 @@ declare(strict_types=1);
 // Contoh:
 //   php tools/import_aido_purworejo.php \
 //     --patients=/opt/klinikdrwestetika/.import/aido-purworejo-patients.jsonl \
-//     --visits=/opt/klinikdrwestetika/.import/aido-purworejo-visits.jsonl
+//     --visits=/opt/klinikdrwestetika/.import/aido-purworejo-visits.jsonl \
+//     --registrations=/opt/klinikdrwestetika/.import/aido-purworejo-registration-map.jsonl
 //
 // NIK AIDO tidak diimpor (tidak ada kolomnya dan tidak dibutuhkan operasional web).
 
@@ -16,15 +17,20 @@ if (PHP_SAPI !== 'cli') {
     exit('Hanya via CLI.');
 }
 
-$options = getopt('', ['patients:', 'visits:']);
+$options = getopt('', ['patients:', 'visits:', 'registrations:']);
 $patientsPath = (string) ($options['patients'] ?? '');
 $visitsPath = (string) ($options['visits'] ?? '');
+$registrationsPath = (string) ($options['registrations'] ?? '');
 if ($patientsPath === '' || !is_file($patientsPath)) {
     fwrite(STDERR, "File patients JSONL tidak ditemukan.\n");
     exit(1);
 }
 if ($visitsPath === '' || !is_file($visitsPath)) {
     fwrite(STDERR, "File visits JSONL tidak ditemukan.\n");
+    exit(1);
+}
+if ($registrationsPath === '' || !is_file($registrationsPath)) {
+    fwrite(STDERR, "File registration map JSONL tidak ditemukan.\n");
     exit(1);
 }
 
@@ -107,7 +113,9 @@ foreach ($layananDefs as $key => $nama) {
 }
 
 // 1) Impor member.
-$memberByMr = [];   // mr => id_user
+$memberByAidoUuid = [];
+$memberByAidoPatientId = [];
+$memberByAidoPmrId = [];
 $memberByName = []; // norm name => [id_user,...]
 $fh = fopen($patientsPath, 'r');
 $nPat = 0;
@@ -152,7 +160,16 @@ try {
             $idUser = $row ? (int) $row['id_user'] : 0;
         }
         if ($idUser > 0) {
-            $memberByMr[$mr] = $idUser;
+            $aidoUuid = trim((string) ($p['uuid'] ?? ''));
+            if ($aidoUuid !== '') {
+                $memberByAidoUuid[$aidoUuid] = $idUser;
+            }
+            if (isset($p['id']) && $p['id'] !== null) {
+                $memberByAidoPatientId[(string) $p['id']] = $idUser;
+            }
+            if (isset($p['patientsMrId']) && $p['patientsMrId'] !== null) {
+                $memberByAidoPmrId[(string) $p['patientsMrId']] = $idUser;
+            }
             $memberByName[norm_name($nama)][] = $idUser;
             $nPat++;
         }
@@ -180,6 +197,23 @@ foreach ($memberByName as $k => $ids) {
     $memberByName[$k] = array_values(array_unique($ids));
 }
 
+// Registration map adalah relasi paling akurat antara transaksi laporan dan pasien AIDO.
+$memberByRegistrationId = [];
+$fh = fopen($registrationsPath, 'r');
+while (($line = fgets($fh)) !== false) {
+    $registration = json_decode(trim($line), true);
+    if (!is_array($registration) || !isset($registration['registrationId'])) {
+        continue;
+    }
+    $idUser = $memberByAidoUuid[(string) ($registration['patientUuid'] ?? '')]
+        ?? $memberByAidoPatientId[(string) ($registration['patientsId'] ?? '')]
+        ?? null;
+    if ($idUser !== null) {
+        $memberByRegistrationId[(string) $registration['registrationId']] = $idUser;
+    }
+}
+fclose($fh);
+
 $stmtStubSel = $conn->prepare('SELECT id_user FROM user WHERE username = ? LIMIT 1');
 $stmtStubIns = $conn->prepare("INSERT INTO user (nama_lengkap, username, password, auth_provider) VALUES (?, ?, NULL, 'local') ON DUPLICATE KEY UPDATE nama_lengkap = VALUES(nama_lengkap)");
 
@@ -188,6 +222,10 @@ $fh = fopen($visitsPath, 'r');
 $seen = [];
 $nOrd = 0;
 $nSkip = 0;
+$nMatchedRegistration = 0;
+$nMatchedPmr = 0;
+$nMatchedName = 0;
+$nNeedsReview = 0;
 $stmtOrd = $conn->prepare('INSERT INTO `order` (id_user, id_layanan, id_cabang, aido_trx_id, tanggal_treatment, catatan_tambahan, status_order, tanggal_order_dibuat) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id_user = VALUES(id_user), status_order = VALUES(status_order), catatan_tambahan = VALUES(catatan_tambahan)');
 $conn->begin_transaction();
 try {
@@ -205,10 +243,25 @@ try {
 
         $namaVisit = trim((string) ($v['patientName'] ?? $v['firstNameDecoded'] ?? ''));
         $key = norm_name($namaVisit);
-        if (isset($memberByName[$key]) && count($memberByName[$key]) > 0) {
+        $idUser = $memberByRegistrationId[(string) ($v['registrationId'] ?? '')] ?? null;
+        $matchSource = $idUser !== null ? 'registration' : null;
+        if ($idUser !== null) {
+            $nMatchedRegistration++;
+        } elseif (isset($memberByAidoPmrId[(string) ($v['pmrId'] ?? '')])) {
+            $idUser = $memberByAidoPmrId[(string) $v['pmrId']];
+            $matchSource = 'pmr';
+            $nMatchedPmr++;
+        } elseif (isset($memberByName[$key]) && count($memberByName[$key]) === 1) {
             $idUser = $memberByName[$key][0];
+            $matchSource = 'name';
+            $nMatchedName++;
         } else {
-            $stubUsername = 'aido_pwj_trx_' . preg_replace('/\D/', '', (string) ($v['trxId'] ?? '0'));
+            // Jangan pilih pasien pertama ketika nama sama: satu PMR AIDO mendapat placeholder stabil.
+            $sourceKey = preg_replace('/\D/', '', (string) ($v['pmrId'] ?? ''));
+            if ($sourceKey === '') {
+                $sourceKey = 'reg_' . preg_replace('/\D/', '', (string) ($v['registrationId'] ?? '0'));
+            }
+            $stubUsername = 'aido_pwj_pmr_' . $sourceKey;
             $stmtStubSel->bind_param('s', $stubUsername);
             $stmtStubSel->execute();
             $row = $stmtStubSel->get_result()->fetch_assoc();
@@ -222,8 +275,9 @@ try {
                 $stmtStubIns->bind_param('ss', $stubNama, $stubUsername);
                 $stmtStubIns->execute();
                 $idUser = (int) $stmtStubIns->insert_id;
-                $memberByName[$key][] = $idUser;
             }
+            $matchSource = 'needs-review';
+            $nNeedsReview++;
         }
 
         $vals = [
@@ -251,14 +305,16 @@ try {
             $payParts[] = trim((string) ($pay['paymentOption'] ?? '')) . ' ' . rupiah((int) round((float) ($pay['totalAmount'] ?? 0)));
         }
         $catatan = sprintf(
-            'AIDO %s %s | Total %s | %s | Dokter: %s | %s%s',
+            'AIDO TRX %s | Reg %s %s | Total %s | %s | Dokter: %s | %s%s%s',
             (string) ($v['trxId'] ?? ''),
+            (string) ($v['registrationId'] ?? ''),
             trim((string) (($v['payment'][0]['trxNumber'] ?? '') ?? '')),
             rupiah($total),
             implode(', ', array_filter($payParts)) !== '' ? implode(', ', array_filter($payParts)) : '-',
             trim((string) ($v['doctorName'] ?? '-')),
             trim((string) ($v['visitType'] ?? '')),
-            !empty($v['diagnoseName']) ? ' | Dx: ' . trim((string) $v['diagnoseName']) : ''
+            !empty($v['diagnoseName']) ? ' | Dx: ' . trim((string) $v['diagnoseName']) : '',
+            $matchSource === 'needs-review' ? ' | Pencocokan pasien AIDO perlu ditinjau' : ''
         );
         $trxId = (int) ($v['trxId'] ?? 0);
         if ($trxId <= 0) {
@@ -283,4 +339,5 @@ $stmtOrd->close();
 $stmtStubSel->close();
 $stmtStubIns->close();
 fwrite(STDOUT, "Order AIDO diproses: {$nOrd} (duplikat dilewati: {$nSkip})\n");
+fwrite(STDOUT, "Pencocokan pasien: registrasi {$nMatchedRegistration}, PMR {$nMatchedPmr}, nama unik {$nMatchedName}, perlu ditinjau {$nNeedsReview}\n");
 $conn->close();
