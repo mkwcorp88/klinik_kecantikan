@@ -2,6 +2,7 @@
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
 
 $errors = [];
+$csrfToken = drw_csrf_token();
 
 // Jika sudah login sebagai admin, redirect ke dashboard
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
@@ -10,9 +11,12 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST['username']);
-    $password = $_POST['password']; // Password plain text untuk perbandingan
+    $username = trim((string) ($_POST['username'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        $errors[] = 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.';
+    }
     if (empty($username)) {
         $errors[] = "Username wajib diisi.";
     }
@@ -21,7 +25,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     if (empty($errors)) {
-        if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD_PLAIN) {
+        $passwordIsValid = ADMIN_PASSWORD_HASH !== '' && password_verify($password, ADMIN_PASSWORD_HASH);
+        $legacyLocalPasswordIsValid = APP_ENV === 'local'
+            && ADMIN_PASSWORD_PLAIN !== ''
+            && hash_equals(ADMIN_PASSWORD_PLAIN, $password);
+
+        if ($username === ADMIN_USERNAME && ($passwordIsValid || $legacyLocalPasswordIsValid)) {
+            unset(
+                $_SESSION['csrf_token'],
+                $_SESSION['user_id'],
+                $_SESSION['username'],
+                $_SESSION['display_name'],
+                $_SESSION['user_auth_provider'],
+                $_SESSION['post_login_redirect']
+            );
+            session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_username'] = $username;
             header("Location: index.php"); // Arahkan ke dashboard admin
@@ -79,6 +97,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <?php endif; ?>
 
                 <form action="login_admin.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username Admin</label>
                         <input type="text" class="form-control" id="username" name="username" required value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">

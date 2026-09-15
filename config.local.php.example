@@ -1,0 +1,16 @@
+<?php
+
+return [
+    'APP_ENV' => 'local',
+    'BASE_URL' => 'http://127.0.0.1:8000',
+    'TRUSTED_PROXY' => false,
+    'DB_HOST' => '127.0.0.1',
+    'DB_USER' => 'root',
+    'DB_PASS' => '',
+    'DB_NAME' => 'klinik_drw_estetika',
+    'GOOGLE_CLIENT_ID' => '',
+    'GOOGLE_CLIENT_SECRET' => '',
+    'GOOGLE_REDIRECT_URI' => 'http://127.0.0.1:8000/auth/google_callback.php',
+    'ADMIN_USERNAME' => '',
+    'ADMIN_PASSWORD_HASH' => '',
+];

@@ -1,14 +1,7 @@
 <?php
 require_once 'config.php'; // Session sudah dimulai di config.php
 
-// Pastikan pengguna sudah login
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error_message_redirect'] = "Anda harus login untuk memberikan atau mengelola testimoni.";
-    // Simpan halaman tujuan untuk redirect setelah login
-    $_SESSION['redirect_url'] = 'testimoni_buat.php';
-    header("Location: login.php?pesan=belum_login");
-    exit();
-}
+drw_require_member('Silakan masuk untuk memberikan atau mengelola testimoni.', 'testimoni_buat.php');
 
 $errors_create = []; // Errors untuk form pembuatan testimoni
 $message_manage = ''; // Pesan untuk manajemen testimoni (hapus)
@@ -16,10 +9,13 @@ $message_manage_type = ''; // 'success' atau 'danger' untuk pesan manajemen
 
 $id_user = $_SESSION['user_id'];
 $isi_testimoni_form = ''; // Untuk repopulate form jika ada error
+$csrfToken = drw_csrf_token();
 
 // Handle Penghapusan Testimoni Milik User
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'delete_my_testimoni') {
-    if (isset($_POST['id_testimoni_to_delete'])) {
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        $_SESSION['message_manage_error'] = 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.';
+    } elseif (isset($_POST['id_testimoni_to_delete'])) {
         $id_testimoni_delete = intval($_POST['id_testimoni_to_delete']);
 
         $stmt_delete_my = $conn->prepare("DELETE FROM testimoni WHERE id_testimoni = ? AND id_user = ?");
@@ -34,14 +30,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             $_SESSION['message_manage_error'] = "Terjadi kesalahan saat menghapus testimoni.";
         }
         $stmt_delete_my->close();
-        header("Location: testimoni_buat.php"); // Redirect untuk refresh dan menghindari resubmit
-        exit();
     }
+    header("Location: testimoni_buat.php"); // Redirect untuk refresh dan menghindari resubmit
+    exit();
 }
 
 // Handle Pembuatan Testimoni Baru
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_new_testimoni'])) {
-    $isi_testimoni_form = $conn->real_escape_string(trim($_POST['isi_testimoni']));
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        $errors_create[] = 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.';
+    }
+    $isi_testimoni_form = trim((string) ($_POST['isi_testimoni'] ?? ''));
 
     if (empty($isi_testimoni_form)) {
         $errors_create[] = "Testimoni tidak boleh kosong.";
@@ -136,7 +135,7 @@ $conn->close();
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
                             ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-current="page">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
@@ -193,6 +192,7 @@ $conn->close();
                         <?php endif; ?>
 
                         <form action="testimoni_buat.php" method="post">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                             <div class="mb-3">
                                 <label for="isi_testimoni" class="form-label">Testimoni Anda <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="isi_testimoni" name="isi_testimoni" rows="5" required minlength="10" placeholder="Ceritakan pengalaman Anda setelah menggunakan layanan kami..."><?php echo htmlspecialchars($isi_testimoni_form); ?></textarea>
@@ -237,6 +237,7 @@ $conn->close();
                                     </span>
                                 </span>
                                 <form method="POST" action="testimoni_buat.php" onsubmit="return confirm('Anda yakin ingin menghapus testimoni ini?');" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                     <input type="hidden" name="action" value="delete_my_testimoni">
                                     <input type="hidden" name="id_testimoni_to_delete" value="<?php echo $testi['id_testimoni']; ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">

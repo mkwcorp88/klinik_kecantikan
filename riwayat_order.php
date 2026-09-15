@@ -1,23 +1,18 @@
 <?php
 require_once 'config.php'; // Session sudah dimulai di config.php
 
-// Pastikan pengguna sudah login
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error_message_redirect'] = "Anda harus login untuk melihat riwayat pesanan.";
-    // Simpan halaman tujuan untuk redirect setelah login
-    $_SESSION['redirect_url'] = 'riwayat_order.php';
-    header("Location: login.php?pesan=belum_login");
-    exit();
-}
+drw_require_member('Silakan masuk untuk melihat riwayat booking.', 'riwayat_order.php');
 
 $id_user = $_SESSION['user_id'];
 $orders = [];
+$flash = drw_consume_flash();
 
-// Ambil data order pengguna dari database
-$stmt = $conn->prepare("SELECT o.id_order, l.nama_layanan, l.harga AS harga_layanan, o.tanggal_treatment, o.catatan_tambahan, o.status_order, o.tanggal_order_dibuat
+// Ambil data booking pengguna dari database.
+$stmt = $conn->prepare("SELECT o.id_order, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.catatan_tambahan, o.status_order, o.tanggal_order_dibuat
                         FROM `order` o
                         JOIN layanan l ON o.id_layanan = l.id_layanan
-                        WHERE o.id_user = ? AND l.status_layanan = 'aktif'
+                        LEFT JOIN cabang c ON o.id_cabang = c.id_cabang
+                        WHERE o.id_user = ?
                         ORDER BY o.tanggal_order_dibuat DESC");
 $stmt->bind_param("i", $id_user);
 $stmt->execute();
@@ -92,7 +87,7 @@ $conn->close();
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
                             ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-current="page">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
@@ -115,7 +110,6 @@ $conn->close();
                         </li>
                     <?php else: // Pengguna belum login, seharusnya sudah diredirect jika mengakses halaman ini ?>
                         <li class="nav-item"><a class="nav-link" href="login.php">Login</a></li>
-                        <li class="nav-item"><a class="btn btn-primary ms-lg-2" href="daftar.php">Daftar Member</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -123,7 +117,14 @@ $conn->close();
     </nav>
 
     <main class="container mt-5 mb-5 flex-grow-1"> <?php /* STICKY FOOTER */ ?>
-        <h1 class="text-center mb-4 section-title">Riwayat Pesanan Saya</h1>
+        <h1 class="text-center mb-4 section-title">Riwayat Booking Saya</h1>
+
+        <?php if ($flash): ?>
+            <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+                <?php echo htmlspecialchars($flash['message']); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
 
         <?php if (isset($error_message_redirect)): ?>
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
@@ -146,9 +147,9 @@ $conn->close();
                         <tr>
                             <th scope="col">ID Order</th>
                             <th scope="col">Layanan</th>
-                            <th scope="col">Tgl Treatment</th>
-                            <th scope="col">Tgl Pesan</th>
-                            <th scope="col">Harga</th>
+                            <th scope="col">Cabang</th>
+                            <th scope="col">Jadwal Kunjungan</th>
+                            <th scope="col">Diajukan</th>
                             <th scope="col">Catatan</th>
                             <th scope="col" class="text-center">Status</th>
                         </tr>
@@ -158,9 +159,9 @@ $conn->close();
                         <tr>
                             <td>#<?php echo htmlspecialchars($order['id_order']); ?></td>
                             <td><?php echo htmlspecialchars($order['nama_layanan']); ?></td>
+                            <td><?php echo htmlspecialchars($order['nama_cabang'] ?? 'Belum dicatat'); ?></td>
                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></td>
                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></td>
-                            <td>Rp <?php echo number_format($order['harga_layanan'], 0, ',', '.'); ?></td>
                             <td><?php echo !empty($order['catatan_tambahan']) ? nl2br(htmlspecialchars($order['catatan_tambahan'])) : '-'; ?></td>
                             <td class="text-center">
                                 <span class="badge status-badge bg-<?php
@@ -200,9 +201,9 @@ $conn->close();
                     </div>
                     <div class="card-body small">
                         <p class="card-text mb-1"><strong>Layanan:</strong> <?php echo htmlspecialchars($order['nama_layanan']); ?></p>
+                        <p class="card-text mb-1"><strong>Cabang:</strong> <?php echo htmlspecialchars($order['nama_cabang'] ?? 'Belum dicatat'); ?></p>
                         <p class="card-text mb-1"><strong>Jadwal:</strong> <?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></p>
                         <p class="card-text mb-1"><strong>Dipesan:</strong> <?php echo date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></p>
-                        <p class="card-text mb-1"><strong>Harga:</strong> Rp <?php echo number_format($order['harga_layanan'], 0, ',', '.'); ?></p>
                         <?php if (!empty($order['catatan_tambahan'])): ?>
                         <p class="card-text mb-0"><strong>Catatan:</strong> <?php echo nl2br(htmlspecialchars($order['catatan_tambahan'])); ?></p>
                         <?php endif; ?>
@@ -213,7 +214,7 @@ $conn->close();
 
         <?php else: ?>
             <div class="alert alert-info text-center mt-4" role="alert">
-                Anda belum memiliki riwayat pesanan. <a href="layanan_tampil.php" class="alert-link">Pesan layanan sekarang!</a>
+                Anda belum memiliki riwayat booking. <a href="order.php" class="alert-link">Ajukan booking konsultasi.</a>
             </div>
         <?php endif; ?>
     </main>

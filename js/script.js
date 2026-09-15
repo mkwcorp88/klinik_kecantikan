@@ -115,50 +115,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     */
-    // Inisialisasi Swiper untuk Layanan Unggulan
-    const layananSwiper = new Swiper('.swiper-container-layanan', {
-        // Optional parameters
-        direction: 'horizontal', // Bisa 'vertical' atau 'horizontal'
-        loop: true, // Membuat slider berputar terus menerus
-        slidesPerView: 1, // Default untuk mobile (tampil 1)
-        spaceBetween: 33, // Jarak antar slide (kartu)
-        slidesPerGroup: 1, // PENTING: Ini yang membuat slide bergeser satu per satu
-
-        autoplay: {
-            delay: 5000, // Waktu dalam milidetik (5 detik)
-            disableOnInteraction: false, // Lanjutkan autoplay meskipun pengguna berinteraksi
-        },
-
-        // Responsive breakpoints
-        breakpoints: {
-            // ketika lebar window >= 768px (tablet)
-            768: {
-                slidesPerView: 2,
-                spaceBetween: 20
+    const layananSwiperElement = document.querySelector('.swiper-container-layanan');
+    if (typeof Swiper !== 'undefined' && layananSwiperElement) {
+        new Swiper(layananSwiperElement, {
+            direction: 'horizontal',
+            loop: true,
+            slidesPerView: 1,
+            spaceBetween: 33,
+            slidesPerGroup: 1,
+            autoplay: {
+                delay: 5000,
+                disableOnInteraction: false,
             },
-            // ketika lebar window >= 992px (desktop kecil)
-            992: {
-                slidesPerView: 3, // Tampilkan 3 kartu di desktop
-                spaceBetween: 20
-            }
-        },
-
-        // If we need pagination
-        pagination: {
-            el: '.swiper-pagination',
-            clickable: true,
-        },
-
-        // Navigation arrows
-        //navigation: {
-          //  nextEl: '.swiper-button-next',
-            //prevEl: '.swiper-button-prev',
-        //},
-    });
-
-    // ----------------------------------------------------------------------------------
-    // Tambahkan fungsi kustom Anda lainnya di sini
-    // ----------------------------------------------------------------------------------
-    console.log('Klinik Kecantikan - Custom script loaded successfully!');
+            breakpoints: {
+                768: {
+                    slidesPerView: 2,
+                    spaceBetween: 20
+                },
+                992: {
+                    slidesPerView: 3,
+                    spaceBetween: 20
+                }
+            },
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+        });
+    }
 
 }); // Akhir dari DOMContentLoaded

@@ -1,0 +1,10 @@
+.git
+.phpunit.result.cache
+config.local.php
+config.local.php.example
+vendor
+preview.html
+preview.png
+README.md
+*.sql
+migrations

@@ -9,6 +9,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $message = '';
 $message_type = '';
+$csrfToken = drw_csrf_token();
+$allowed_statuses = ['approved', 'pending', 'rejected'];
 
 // Parameter untuk filter dan search, agar tetap ada setelah aksi
 $current_query_params = [];
@@ -19,24 +21,24 @@ $action_url = "kelola_testimoni.php" . ($query_string_params ? "?".$query_string
 
 // Handle Update Status Testimoni
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_testimoni'])) {
-    $testimoni_id = intval($_POST['testimoni_id']);
-    $new_status = $conn->real_escape_string($_POST['status_testimoni']);
-    $allowed_statuses = ['approved', 'pending', 'rejected'];
-
-    if (in_array($new_status, $allowed_statuses)) {
-        $stmt_update = $conn->prepare("UPDATE testimoni SET status_testimoni = ? WHERE id_testimoni = ?");
-        $stmt_update->bind_param("si", $new_status, $testimoni_id);
-        if ($stmt_update->execute()) {
-            $_SESSION['flash_message'] = "Status testimoni ID #$testimoni_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.";
-            $_SESSION['flash_message_type'] = "success";
-        } else {
-            $_SESSION['flash_message'] = "Gagal memperbarui status testimoni: " . $stmt_update->error;
-            $_SESSION['flash_message_type'] = "danger";
-        }
-        $stmt_update->close();
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        drw_flash('danger', 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.');
     } else {
-        $_SESSION['flash_message'] = "Status tidak valid.";
-        $_SESSION['flash_message_type'] = "danger";
+        $testimoni_id = intval($_POST['testimoni_id']);
+        $new_status = is_string($_POST['status_testimoni'] ?? null) ? $_POST['status_testimoni'] : '';
+
+        if (in_array($new_status, $allowed_statuses, true)) {
+            $stmt_update = $conn->prepare("UPDATE testimoni SET status_testimoni = ? WHERE id_testimoni = ?");
+            $stmt_update->bind_param("si", $new_status, $testimoni_id);
+            if ($stmt_update->execute()) {
+                drw_flash('success', "Status testimoni ID #$testimoni_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
+            } else {
+                drw_flash('danger', 'Gagal memperbarui status testimoni. Terjadi kesalahan internal.');
+            }
+            $stmt_update->close();
+        } else {
+            drw_flash('danger', 'Status testimoni tidak valid.');
+        }
     }
     header("Location: " . $action_url); // Redirect dengan parameter filter/search
     exit();
@@ -44,17 +46,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_testimon
 
 // Handle Hapus Testimoni Permanen
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_testimoni'])) {
-    $testimoni_id_delete = intval($_POST['testimoni_id_delete']);
-    $stmt_delete = $conn->prepare("DELETE FROM testimoni WHERE id_testimoni = ?");
-    $stmt_delete->bind_param("i", $testimoni_id_delete);
-    if ($stmt_delete->execute()) {
-        $_SESSION['flash_message'] = "Testimoni ID #$testimoni_id_delete berhasil dihapus permanen.";
-        $_SESSION['flash_message_type'] = "success";
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        drw_flash('danger', 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.');
     } else {
-        $_SESSION['flash_message'] = "Gagal menghapus testimoni: " . $stmt_delete->error;
-        $_SESSION['flash_message_type'] = "danger";
+        $testimoni_id_delete = intval($_POST['testimoni_id_delete']);
+        $stmt_delete = $conn->prepare("DELETE FROM testimoni WHERE id_testimoni = ?");
+        $stmt_delete->bind_param("i", $testimoni_id_delete);
+        if ($stmt_delete->execute()) {
+            drw_flash('success', "Testimoni ID #$testimoni_id_delete berhasil dihapus permanen.");
+        } else {
+            drw_flash('danger', 'Gagal menghapus testimoni. Terjadi kesalahan internal.');
+        }
+        $stmt_delete->close();
     }
-    $stmt_delete->close();
     header("Location: " . $action_url); // Redirect dengan parameter filter/search
     exit();
 }
@@ -68,8 +72,9 @@ if (isset($_SESSION['flash_message'])) {
 }
 
 // Filter dan Search Logic
-$filter_status_get = isset($_GET['filter_status']) ? $conn->real_escape_string($_GET['filter_status']) : '';
-$search_content_get = isset($_GET['search_content']) ? $conn->real_escape_string(trim($_GET['search_content'])) : '';
+$filter_status_get = isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true) ? $_GET['filter_status'] : '';
+$search_content_get = isset($_GET['search_content']) && is_string($_GET['search_content']) ? trim($_GET['search_content']) : '';
+$search_content_sql = $conn->real_escape_string($search_content_get);
 
 $testimonies = [];
 $where_clauses = [];
@@ -78,7 +83,7 @@ if (!empty($filter_status_get)) {
     $where_clauses[] = "t.status_testimoni = '$filter_status_get'";
 }
 if (!empty($search_content_get)) {
-     $where_clauses[] = "(t.isi_testimoni LIKE '%$search_content_get%' OR u.nama_lengkap LIKE '%$search_content_get%' OR u.username LIKE '%$search_content_get%')";
+     $where_clauses[] = "(t.isi_testimoni LIKE '%$search_content_sql%' OR u.nama_lengkap LIKE '%$search_content_sql%' OR u.username LIKE '%$search_content_sql%')";
 }
 
 $sql_testimonies = "SELECT t.id_testimoni, u.nama_lengkap AS nama_user, u.username AS username_user, t.isi_testimoni, t.tanggal_testimoni, t.status_testimoni
@@ -106,6 +111,7 @@ $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_
 if($pending_testimoni_query) $pending_testimoni_query->close();
 
 $conn->close();
+$actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
 <html lang="id">
@@ -253,7 +259,8 @@ $conn->close();
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end">
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="testimoni_id" value="<?php echo $testi['id_testimoni']; ?>">
                                                                 <input type="hidden" name="status_testimoni" value="approved">
                                                                 <button type="submit" name="update_status_testimoni" class="dropdown-item <?php if ($testi['status_testimoni'] == 'approved') echo 'active disabled fw-bold'; ?>">
@@ -262,7 +269,8 @@ $conn->close();
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="testimoni_id" value="<?php echo $testi['id_testimoni']; ?>">
                                                                 <input type="hidden" name="status_testimoni" value="rejected">
                                                                 <button type="submit" name="update_status_testimoni" class="dropdown-item <?php if ($testi['status_testimoni'] == 'rejected') echo 'active disabled fw-bold'; ?>">
@@ -271,7 +279,8 @@ $conn->close();
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="testimoni_id" value="<?php echo $testi['id_testimoni']; ?>">
                                                                 <input type="hidden" name="status_testimoni" value="pending">
                                                                 <button type="submit" name="update_status_testimoni" class="dropdown-item <?php if ($testi['status_testimoni'] == 'pending') echo 'active disabled fw-bold'; ?>">
@@ -281,7 +290,8 @@ $conn->close();
                                                         </li>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline" onsubmit="return confirm('Anda YAKIN ingin menghapus permanen testimoni ini? Tindakan ini tidak dapat diurungkan.');">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline" onsubmit="return confirm('Anda YAKIN ingin menghapus permanen testimoni ini? Tindakan ini tidak dapat diurungkan.');">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="testimoni_id_delete" value="<?php echo $testi['id_testimoni']; ?>">
                                                                 <button type="submit" name="delete_testimoni" class="dropdown-item">
                                                                     <i class="fas fa-trash-alt text-danger"></i>Hapus Permanen

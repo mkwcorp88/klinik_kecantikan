@@ -141,7 +141,7 @@ if (isset($_SESSION['error_message_redirect'])) { // Pesan error dari redirect l
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
                             ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
@@ -164,7 +164,6 @@ if (isset($_SESSION['error_message_redirect'])) { // Pesan error dari redirect l
                         </li>
                     <?php else: ?>
                         <li class="nav-item"><a class="nav-link <?php if(basename($_SERVER['PHP_SELF']) == 'login.php') echo 'active'; ?>" href="login.php">Login</a></li>
-                        <li class="nav-item"><a class="btn btn-primary ms-lg-2 <?php if(basename($_SERVER['PHP_SELF']) == 'daftar.php') echo 'active'; ?>" href="daftar.php">Daftar Member</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -203,7 +202,7 @@ if (isset($_SESSION['error_message_redirect'])) { // Pesan error dari redirect l
         </div>
         <?php else: ?>
         <div class="alert alert-info text-center col-md-8 mx-auto my-5">
-            Untuk memberikan testimoni, silakan <a href="login.php?redirect_to_testimoni=true&pesan=belum_login" class="alert-link">Login</a> atau <a href="daftar.php" class="alert-link">Daftar</a> terlebih dahulu.
+            Untuk memberikan testimoni, silakan <a href="testimoni_buat.php" class="alert-link">masuk dengan Google</a> terlebih dahulu.
         </div>
         <?php endif; ?>
 

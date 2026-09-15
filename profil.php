@@ -1,13 +1,7 @@
 <?php
 require_once 'config.php'; // Session sudah dimulai di config.php
 
-// 1. Autentikasi: Pastikan pengguna sudah login
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error_message_redirect'] = "Anda harus login untuk mengakses halaman profil.";
-    $_SESSION['redirect_url'] = 'profil.php'; // Simpan halaman tujuan
-    header("Location: login.php?pesan=belum_login");
-    exit();
-}
+drw_require_member('Silakan masuk untuk mengakses profil Anda.', 'profil.php');
 
 $id_user = $_SESSION['user_id'];
 $user_data = null;
@@ -15,9 +9,13 @@ $errors_detail = [];
 $success_message_detail = '';
 $errors_password = [];
 $success_message_password = '';
+$flash = drw_consume_flash();
+$csrfToken = drw_csrf_token();
+$isProfileDetailPost = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profil_detail']);
+$isPasswordChangePost = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ganti_password']);
 
 // 2. Ambil data pengguna saat ini
-$stmt_user = $conn->prepare("SELECT username, nama_lengkap, email, no_telepon, alamat, tanggal_daftar FROM user WHERE id_user = ?");
+$stmt_user = $conn->prepare("SELECT username, nama_lengkap, email, no_telepon, alamat, password, google_sub, google_email, auth_provider, tanggal_daftar FROM user WHERE id_user = ?");
 $stmt_user->bind_param("i", $id_user);
 $stmt_user->execute();
 $result_user = $stmt_user->get_result();
@@ -27,6 +25,7 @@ if ($result_user->num_rows === 1) {
     // Seharusnya tidak terjadi jika session valid, tapi sebagai fallback:
     unset($_SESSION['user_id']);
     unset($_SESSION['username']);
+    unset($_SESSION['display_name']);
     $_SESSION['error_message_redirect'] = "Sesi tidak valid atau pengguna tidak ditemukan.";
     header("Location: login.php?pesan=error_sesi");
     exit();
@@ -34,24 +33,26 @@ if ($result_user->num_rows === 1) {
 $stmt_user->close();
 
 // 3. Handle Update Profil Detail
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profil_detail'])) {
-    $nama_lengkap = $conn->real_escape_string(trim($_POST['nama_lengkap']));
-    $email_post = $conn->real_escape_string(trim($_POST['email'])); // Email dari form
-    $no_telepon = $conn->real_escape_string(trim($_POST['no_telepon']));
-    $alamat = $conn->real_escape_string(trim($_POST['alamat']));
+if ($isProfileDetailPost && !drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+    $errors_detail[] = 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.';
+}
+
+if ($isProfileDetailPost && $errors_detail === []) {
+    $nama_lengkap = trim((string) ($_POST['nama_lengkap'] ?? ''));
+    $email_post = trim((string) ($_POST['email'] ?? ''));
+    $no_telepon = trim((string) ($_POST['no_telepon'] ?? ''));
+    $alamat = trim((string) ($_POST['alamat'] ?? ''));
 
     // Validasi dasar
     if (empty($nama_lengkap)) $errors_detail[] = "Nama lengkap wajib diisi.";
-    if (empty($no_telepon)) $errors_detail[] = "Nomor telepon wajib diisi.";
-    if (empty($alamat)) $errors_detail[] = "Alamat wajib diisi.";
     if (!empty($email_post) && !filter_var($email_post, FILTER_VALIDATE_EMAIL)) {
         $errors_detail[] = "Format email tidak valid.";
     }
 
     // Cek keunikan email jika diubah dan tidak kosong
     if (empty($errors_detail) && !empty($email_post) && strtolower($email_post) !== strtolower($user_data['email'] ?? '')) {
-        $stmt_check_email = $conn->prepare("SELECT id_user FROM user WHERE email = ? AND id_user != ?");
-        $stmt_check_email->bind_param("si", $email_post, $id_user);
+        $stmt_check_email = $conn->prepare("SELECT id_user FROM user WHERE (email = ? OR google_email = ?) AND id_user != ?");
+        $stmt_check_email->bind_param("ssi", $email_post, $email_post, $id_user);
         $stmt_check_email->execute();
         $result_check_email = $stmt_check_email->get_result();
         if ($result_check_email->num_rows > 0) {
@@ -66,7 +67,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profil_detail']
         $stmt_update->bind_param("ssssi", $nama_lengkap, $email_val_db, $no_telepon, $alamat, $id_user);
 
         if ($stmt_update->execute()) {
-            $_SESSION['success_message_profil'] = "Profil berhasil diperbarui.";
+            $_SESSION['display_name'] = $nama_lengkap;
+            drw_flash('success', 'Profil berhasil diperbarui.');
             // Jika nama lengkap adalah bagian dari session username, mungkin perlu update session
             // Namun, username (login) tidak diubah di sini.
             header("Location: profil.php"); // Redirect untuk refresh data dan tampilkan pesan
@@ -79,12 +81,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_profil_detail']
 }
 
 // 4. Handle Ganti Password
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ganti_password'])) {
+if ($isPasswordChangePost && !drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+    $errors_password[] = 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.';
+}
+
+if ($isPasswordChangePost && $errors_password === []) {
+    if ($user_data['password'] === null) {
+        $errors_password[] = "Akun Google tidak memiliki password lokal.";
+    }
     $password_lama = $_POST['password_lama'];
     $password_baru = $_POST['password_baru'];
     $konfirmasi_password_baru = $_POST['konfirmasi_password_baru'];
 
-    if (empty($password_lama) || empty($password_baru) || empty($konfirmasi_password_baru)) {
+    if (empty($errors_password) && (empty($password_lama) || empty($password_baru) || empty($konfirmasi_password_baru))) {
         $errors_password[] = "Semua field password wajib diisi.";
     } elseif ($password_baru !== $konfirmasi_password_baru) {
         $errors_password[] = "Password baru dan konfirmasi password tidak cocok.";
@@ -173,7 +182,7 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
                             ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-current="page">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
@@ -209,6 +218,12 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         <?php endif; ?>
+        <?php if ($flash): ?>
+            <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+                <?php echo htmlspecialchars($flash['message']); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
 
         <div class="row">
             <div class="col-lg-7 mb-4">
@@ -232,10 +247,11 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                         <?php endif; ?>
 
                         <form action="profil.php" method="post">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                             <div class="mb-3">
-                                <label for="profil_username" class="form-label">Username</label>
+                                <label for="profil_username" class="form-label">ID Akun</label>
                                 <input type="text" class="form-control" id="profil_username" value="<?php echo htmlspecialchars($user_data['username']); ?>" readonly disabled>
-                                <div class="form-text">Username tidak dapat diubah.</div>
+                                <div class="form-text">ID akun tidak dapat diubah.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="profil_nama_lengkap" class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
@@ -246,12 +262,23 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                                 <input type="email" class="form-control" id="profil_email" name="email" value="<?php echo $form_email; ?>">
                             </div>
                             <div class="mb-3">
-                                <label for="profil_no_telepon" class="form-label">Nomor Telepon <span class="text-danger">*</span></label>
-                                <input type="tel" class="form-control" id="profil_no_telepon" name="no_telepon" value="<?php echo $form_no_telepon; ?>" required>
+                                <label class="form-label">Login Google</label>
+                                <?php if (!empty($user_data['google_sub'])): ?>
+                                    <div class="form-control bg-light">Terhubung sebagai <?php echo htmlspecialchars($user_data['google_email'] ?: $user_data['email']); ?></div>
+                                <?php elseif (GOOGLE_OAUTH_CONFIGURED): ?>
+                                    <div><a class="btn btn-outline-danger btn-sm" href="auth/google_start.php?mode=link"><i class="fab fa-google me-1"></i>Hubungkan akun Google</a></div>
+                                <?php else: ?>
+                                    <div class="form-text">Login Google belum dikonfigurasi untuk lingkungan ini.</div>
+                                <?php endif; ?>
                             </div>
                             <div class="mb-3">
-                                <label for="profil_alamat" class="form-label">Alamat <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="profil_alamat" name="alamat" rows="3" required><?php echo $form_alamat; ?></textarea>
+                                <label for="profil_no_telepon" class="form-label">Nomor WhatsApp</label>
+                                <input type="tel" class="form-control" id="profil_no_telepon" name="no_telepon" value="<?php echo $form_no_telepon; ?>">
+                                <div class="form-text">Nomor WhatsApp wajib diisi saat mengajukan booking.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="profil_alamat" class="form-label">Alamat</label>
+                                <textarea class="form-control" id="profil_alamat" name="alamat" rows="3"><?php echo $form_alamat; ?></textarea>
                             </div>
                              <div class="mb-3">
                                 <label class="form-label">Tanggal Daftar</label>
@@ -264,6 +291,7 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
             </div>
 
             <div class="col-lg-5 mb-4">
+                <?php if ($user_data['password'] !== null): ?>
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-secondary text-white">
                          <h5 class="mb-0"><i class="fas fa-key"></i> Ganti Password</h5>
@@ -284,6 +312,7 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                         <?php endif; ?>
 
                         <form action="profil.php" method="post">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                             <div class="mb-3">
                                 <label for="password_lama" class="form-label">Password Lama <span class="text-danger">*</span></label>
                                 <input type="password" class="form-control" id="password_lama" name="password_lama" required>
@@ -301,6 +330,14 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                         </form>
                     </div>
                 </div>
+                <?php else: ?>
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="fab fa-google"></i> Akun Google</h5></div>
+                    <div class="card-body">
+                        <p class="mb-0">Anda masuk menggunakan Google. Keamanan akun dikelola oleh Google, sehingga password lokal tidak diperlukan.</p>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </main>

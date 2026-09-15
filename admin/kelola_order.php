@@ -9,35 +9,37 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $message = '';
 $message_type = '';
+$csrfToken = drw_csrf_token();
+$allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
 
 // Parameter untuk filter dan search, agar tetap ada setelah aksi
 $current_query_params = [];
-if(isset($_GET['filter_status']) && !empty($_GET['filter_status'])) $current_query_params['filter_status'] = $_GET['filter_status'];
+if(isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true)) $current_query_params['filter_status'] = $_GET['filter_status'];
 if(isset($_GET['search_user']) && !empty($_GET['search_user'])) $current_query_params['search_user'] = $_GET['search_user'];
+if(isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang'])) $current_query_params['filter_cabang'] = (int) $_GET['filter_cabang'];
 $query_string_params = http_build_query($current_query_params);
 $action_url = "kelola_order.php" . ($query_string_params ? "?".$query_string_params : "");
 
 // Handle Update Status Order
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])) {
-    $order_id = intval($_POST['order_id']);
-    $new_status = $conn->real_escape_string($_POST['status_order']);
-    $allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
-
-    if (in_array($new_status, $allowed_statuses)) {
-        $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
-        $stmt_update->bind_param("si", $new_status, $order_id);
-        if ($stmt_update->execute()) {
-            $_SESSION['flash_message'] = "Status order ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.";
-            $_SESSION['flash_message_type'] = "success";
-        } else {
-            // Jangan tampilkan $stmt_update->error ke user secara langsung di production
-            $_SESSION['flash_message'] = "Gagal memperbarui status order. Terjadi kesalahan internal.";
-            $_SESSION['flash_message_type'] = "danger";
-        }
-        $stmt_update->close();
+    if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
+        drw_flash('danger', 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.');
     } else {
-        $_SESSION['flash_message'] = "Status order tidak valid.";
-        $_SESSION['flash_message_type'] = "danger";
+        $order_id = intval($_POST['order_id']);
+        $new_status = is_string($_POST['status_order'] ?? null) ? $_POST['status_order'] : '';
+
+        if (in_array($new_status, $allowed_statuses, true)) {
+            $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
+            $stmt_update->bind_param("si", $new_status, $order_id);
+            if ($stmt_update->execute()) {
+                drw_flash('success', "Status booking ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
+            } else {
+                drw_flash('danger', 'Gagal memperbarui status booking. Terjadi kesalahan internal.');
+            }
+            $stmt_update->close();
+        } else {
+            drw_flash('danger', 'Status booking tidak valid.');
+        }
     }
     header("Location: " . $action_url); // Redirect dengan parameter filter/search
     exit();
@@ -52,8 +54,17 @@ if (isset($_SESSION['flash_message'])) {
 }
 
 // Filter dan Search Logic
-$filter_status_get = isset($_GET['filter_status']) ? $conn->real_escape_string($_GET['filter_status']) : '';
-$search_user_get = isset($_GET['search_user']) ? $conn->real_escape_string(trim($_GET['search_user'])) : '';
+$filter_status_get = isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true) ? $_GET['filter_status'] : '';
+$search_user_get = isset($_GET['search_user']) && is_string($_GET['search_user']) ? trim($_GET['search_user']) : '';
+$search_user_sql = $conn->real_escape_string($search_user_get);
+$filter_cabang_get = isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang']) ? (int) $_GET['filter_cabang'] : 0;
+
+$branches = [];
+$result_branches = $conn->query('SELECT id_cabang, nama_cabang FROM cabang ORDER BY nama_cabang ASC');
+while ($branch = $result_branches->fetch_assoc()) {
+    $branches[] = $branch;
+}
+$result_branches->close();
 
 $orders = [];
 $where_clauses = [];
@@ -61,14 +72,18 @@ $where_clauses = [];
 if (!empty($filter_status_get)) {
     $where_clauses[] = "o.status_order = '$filter_status_get'";
 }
+if ($filter_cabang_get > 0) {
+    $where_clauses[] = "o.id_cabang = $filter_cabang_get";
+}
 if (!empty($search_user_get)) {
-     $where_clauses[] = "(u.nama_lengkap LIKE '%$search_user_get%' OR u.username LIKE '%$search_user_get%')";
+     $where_clauses[] = "(u.nama_lengkap LIKE '%$search_user_sql%' OR u.username LIKE '%$search_user_sql%' OR u.email LIKE '%$search_user_sql%' OR u.no_telepon LIKE '%$search_user_sql%')";
 }
 
-$sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan
+$sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan
                FROM `order` o
                JOIN user u ON o.id_user = u.id_user
-               JOIN layanan l ON o.id_layanan = l.id_layanan";
+               JOIN layanan l ON o.id_layanan = l.id_layanan
+               LEFT JOIN cabang c ON o.id_cabang = c.id_cabang";
 if (!empty($where_clauses)) {
     $sql_orders .= " WHERE " . implode(" AND ", $where_clauses);
 }
@@ -91,6 +106,7 @@ $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_
 if($pending_testimoni_query) $pending_testimoni_query->close();
 
 $conn->close();
+$actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
 <html lang="id">
@@ -168,11 +184,11 @@ $conn->close();
                     </div>
                     <div class="card-body">
                         <form method="GET" action="kelola_order.php" class="row g-3 align-items-end">
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <label for="search_user" class="form-label">Cari Member</label>
                                 <input type="text" name="search_user" id="search_user" class="form-control form-control-sm" placeholder="Nama atau username member..." value="<?php echo htmlspecialchars($search_user_get); ?>">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="filter_status" class="form-label">Filter Status</label>
                                 <select name="filter_status" id="filter_status" class="form-select form-select-sm">
                                     <option value="">Semua Status</option>
@@ -182,10 +198,19 @@ $conn->close();
                                     <option value="cancelled" <?php if ($filter_status_get == 'cancelled') echo 'selected'; ?>>Cancelled</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 mt-auto">
+                            <div class="col-md-3">
+                                <label for="filter_cabang" class="form-label">Cabang</label>
+                                <select name="filter_cabang" id="filter_cabang" class="form-select form-select-sm">
+                                    <option value="">Semua Cabang</option>
+                                    <?php foreach ($branches as $branch): ?>
+                                        <option value="<?php echo (int) $branch['id_cabang']; ?>" <?php if ($filter_cabang_get === (int) $branch['id_cabang']) echo 'selected'; ?>><?php echo htmlspecialchars($branch['nama_cabang']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mt-auto">
                                 <button class="btn btn-primary btn-sm w-100" type="submit"><i class="fas fa-search me-1"></i> Terapkan</button>
                             </div>
-                             <?php if (!empty($filter_status_get) || !empty($search_user_get)): ?>
+                              <?php if (!empty($filter_status_get) || !empty($search_user_get) || $filter_cabang_get > 0): ?>
                             <div class="col-12 mt-2">
                                 <a href="kelola_order.php" class="btn btn-secondary btn-sm"><i class="fas fa-times me-1"></i> Reset Filter</a>
                             </div>
@@ -204,8 +229,9 @@ $conn->close();
                                 <thead class="table-dark">
                                     <tr>
                                         <th scope="col">ID</th>
-                                        <th scope="col">Member (Telp)</th>
-                                        <th scope="col">Layanan</th>
+                                         <th scope="col">Member (Telp)</th>
+                                         <th scope="col">Cabang</th>
+                                         <th scope="col">Layanan</th>
                                         <th scope="col">Jadwal Treatment</th>
                                         <th scope="col">Tgl Order</th>
                                         <th scope="col">Catatan</th>
@@ -218,11 +244,12 @@ $conn->close();
                                         <?php foreach ($orders as $order): ?>
                                         <tr>
                                             <td>#<?php echo $order['id_order']; ?></td>
-                                            <td>
-                                                <?php echo htmlspecialchars($order['nama_user']); ?><br>
-                                                <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo htmlspecialchars($order['telepon_user']); ?></small>
-                                            </td>
-                                            <td><?php echo htmlspecialchars($order['nama_layanan']); ?></td>
+                                             <td>
+                                                 <?php echo htmlspecialchars($order['nama_user']); ?><br>
+                                                 <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo htmlspecialchars($order['telepon_user']); ?></small>
+                                             </td>
+                                             <td><?php echo htmlspecialchars($order['nama_cabang'] ?? 'Belum dicatat'); ?></td>
+                                             <td><?php echo htmlspecialchars($order['nama_layanan']); ?></td>
                                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></td>
                                             <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></td>
                                             <td><small><?php echo nl2br(htmlspecialchars($order['catatan_tambahan'] ? $order['catatan_tambahan'] : '-')); ?></small></td>
@@ -244,7 +271,8 @@ $conn->close();
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end">
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="order_id" value="<?php echo $order['id_order']; ?>">
                                                                 <input type="hidden" name="status_order" value="pending">
                                                                 <button type="submit" name="update_status_order" class="dropdown-item <?php if ($order['status_order'] == 'pending') echo 'active disabled fw-bold'; ?>">
@@ -253,7 +281,8 @@ $conn->close();
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="order_id" value="<?php echo $order['id_order']; ?>">
                                                                 <input type="hidden" name="status_order" value="confirmed">
                                                                 <button type="submit" name="update_status_order" class="dropdown-item <?php if ($order['status_order'] == 'confirmed') echo 'active disabled fw-bold'; ?>">
@@ -262,7 +291,8 @@ $conn->close();
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="order_id" value="<?php echo $order['id_order']; ?>">
                                                                 <input type="hidden" name="status_order" value="completed">
                                                                 <button type="submit" name="update_status_order" class="dropdown-item <?php if ($order['status_order'] == 'completed') echo 'active disabled fw-bold'; ?>">
@@ -271,7 +301,8 @@ $conn->close();
                                                             </form>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?php echo $action_url; ?>" class="d-inline">
+                                                            <form method="POST" action="<?php echo $actionUrlHtml; ?>" class="d-inline">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                                                                 <input type="hidden" name="order_id" value="<?php echo $order['id_order']; ?>">
                                                                 <input type="hidden" name="status_order" value="cancelled">
                                                                 <button type="submit" name="update_status_order" class="dropdown-item <?php if ($order['status_order'] == 'cancelled') echo 'active disabled fw-bold'; ?>">
@@ -286,8 +317,8 @@ $conn->close();
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="8" class="text-center">
-                                                <?php if(!empty($filter_status_get) || !empty($search_user_get)): ?>
+                                            <td colspan="9" class="text-center">
+                                                <?php if(!empty($filter_status_get) || !empty($search_user_get) || $filter_cabang_get > 0): ?>
                                                     Tidak ada order ditemukan dengan filter/pencarian saat ini.
                                                 <?php else: ?>
                                                     Belum ada data order.

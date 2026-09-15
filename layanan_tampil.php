@@ -96,7 +96,7 @@ if (isset($_SESSION['order_success'])) {
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
                             ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
@@ -119,7 +119,6 @@ if (isset($_SESSION['order_success'])) {
                         </li>
                     <?php else: ?>
                         <li class="nav-item"><a class="nav-link <?php if(basename($_SERVER['PHP_SELF']) == 'login.php') echo 'active'; ?>" href="login.php">Login</a></li>
-                        <li class="nav-item"><a class="btn btn-primary ms-lg-2 <?php if(basename($_SERVER['PHP_SELF']) == 'daftar.php') echo 'active'; ?>" href="daftar.php">Daftar Member</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -148,7 +147,7 @@ if (isset($_SESSION['order_success'])) {
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title text-primary"><?php echo htmlspecialchars($layanan['nama_layanan']); ?></h5>
                             <p class="card-text small text-secondary flex-grow-1"><?php echo nl2br(htmlspecialchars($layanan['deskripsi_singkat'])); ?></p>
-                            <p class="card-text fs-5 fw-bold text-success">Rp <?php echo number_format($layanan['harga'], 0, ',', '.'); ?></p>
+                            <p class="card-text fs-5 fw-bold text-success"><?php echo (int) $layanan['harga'] > 0 ? 'Rp ' . number_format($layanan['harga'], 0, ',', '.') : 'Konsultasi gratis'; ?></p>
                             <a href="order.php?id_layanan=<?php echo $layanan['id_layanan']; ?>" class="btn btn-primary mt-auto w-100"><i class="fas fa-shopping-cart me-2"></i> Pesan Sekarang</a>
                         </div>
                     </div>
