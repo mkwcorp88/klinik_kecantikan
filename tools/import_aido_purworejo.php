@@ -30,12 +30,17 @@ if ($visitsPath === '' || !is_file($visitsPath)) {
 
 require __DIR__ . '/../config.php';
 
-function norm_name(?string $name): string
+function clean_name(?string $name): string
 {
     $name = trim((string) $name);
-    $name = preg_replace('/\s*\(.*?\)\s*$/', '', $name);
+    $name = preg_replace('/\s*\(.*$/', '', $name);
     $name = preg_replace('/\s+/', ' ', $name);
-    return mb_strtolower(trim($name));
+    return trim($name);
+}
+
+function norm_name(?string $name): string
+{
+    return mb_strtolower(clean_name($name));
 }
 
 function to_wib_datetime(?string $settleIso, ?string $consultationDmy): string
@@ -119,7 +124,7 @@ try {
         if ($mr === '') {
             continue;
         }
-        $nama = trim(trim((string) ($p['firstName'] ?? '')) . ' ' . trim((string) ($p['lastName'] ?? '')));
+        $nama = clean_name(trim((string) ($p['firstName'] ?? '')) . ' ' . trim((string) ($p['lastName'] ?? '')));
         if ($nama === '') {
             $nama = $mr;
         }
@@ -183,7 +188,7 @@ $fh = fopen($visitsPath, 'r');
 $seen = [];
 $nOrd = 0;
 $nSkip = 0;
-$stmtOrd = $conn->prepare('INSERT INTO `order` (id_user, id_layanan, id_cabang, aido_trx_id, tanggal_treatment, catatan_tambahan, status_order, tanggal_order_dibuat) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status_order = VALUES(status_order), catatan_tambahan = VALUES(catatan_tambahan)');
+$stmtOrd = $conn->prepare('INSERT INTO `order` (id_user, id_layanan, id_cabang, aido_trx_id, tanggal_treatment, catatan_tambahan, status_order, tanggal_order_dibuat) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id_user = VALUES(id_user), status_order = VALUES(status_order), catatan_tambahan = VALUES(catatan_tambahan)');
 $conn->begin_transaction();
 try {
     while (($line = fgets($fh)) !== false) {
@@ -210,7 +215,10 @@ try {
             if ($row) {
                 $idUser = (int) $row['id_user'];
             } else {
-                $stubNama = $namaVisit !== '' ? $namaVisit : $stubUsername;
+                $stubNama = clean_name($namaVisit);
+                if ($stubNama === '') {
+                    $stubNama = $stubUsername;
+                }
                 $stmtStubIns->bind_param('ss', $stubNama, $stubUsername);
                 $stmtStubIns->execute();
                 $idUser = (int) $stmtStubIns->insert_id;
