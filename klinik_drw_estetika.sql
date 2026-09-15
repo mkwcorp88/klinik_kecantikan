@@ -17,11 +17,13 @@ CREATE TABLE `user` (
   `auth_provider` enum('local','google') NOT NULL DEFAULT 'local',
   `no_telepon` varchar(20) DEFAULT NULL,
   `alamat` text DEFAULT NULL,
+  `aido_mr` varchar(50) DEFAULT NULL COMMENT 'Nomor MR dari AIDO, unik per pasien',
   `tanggal_daftar` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_user`),
   UNIQUE KEY `username_unique` (`username`),
   UNIQUE KEY `google_sub_unique` (`google_sub`),
-  UNIQUE KEY `google_email_unique` (`google_email`)
+  UNIQUE KEY `google_email_unique` (`google_email`),
+  UNIQUE KEY `uq_user_aido_mr` (`aido_mr`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `cabang` (
@@ -74,6 +76,7 @@ CREATE TABLE `order` (
   `id_user` int(11) NOT NULL,
   `id_layanan` int(11) NOT NULL,
   `id_cabang` int(11) DEFAULT NULL,
+  `aido_trx_id` bigint(20) DEFAULT NULL COMMENT 'ID transaksi AIDO untuk dedup impor',
   `tanggal_treatment` datetime NOT NULL,
   `catatan_tambahan` text DEFAULT NULL,
   `status_order` enum('pending','confirmed','completed','cancelled') NOT NULL DEFAULT 'pending',
@@ -81,6 +84,7 @@ CREATE TABLE `order` (
   PRIMARY KEY (`id_order`),
   KEY `fk_order_user` (`id_user`),
   KEY `fk_order_layanan` (`id_layanan`),
+  UNIQUE KEY `uq_order_aido_trx` (`aido_trx_id`),
   KEY `idx_order_cabang_tanggal` (`id_cabang`, `tanggal_treatment`),
   KEY `idx_order_active_booking` (`id_user`, `id_layanan`, `id_cabang`, `tanggal_treatment`, `status_order`),
   CONSTRAINT `fk_order_user` FOREIGN KEY (`id_user`) REFERENCES `user` (`id_user`) ON DELETE CASCADE ON UPDATE CASCADE,
