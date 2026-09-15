@@ -419,15 +419,15 @@ $conn->close();
                                     <?php if (!empty($users)): ?>
                                         <?php foreach ($users as $user): ?>
                                         <tr>
-                                            <td><?php echo $user['id_user']; ?></td>
-                                            <td><?php echo htmlspecialchars($user['nama_lengkap']); ?></td>
+                                            <td><?php echo (int) $user['id_user']; ?></td>
+                                            <td><?php echo htmlspecialchars((string) $user['nama_lengkap']); ?></td>
                                             <td><?php echo $user['aido_mr'] !== null ? '<span class="badge bg-info text-dark">AIDO</span>' : '<span class="badge bg-secondary">Website</span>'; ?></td>
-                                            <td><?php echo htmlspecialchars($user['aido_mr'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                            <td><?php echo htmlspecialchars($user['email'] ? $user['email'] : '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($user['no_telepon']); ?></td>
-                                            <td><small><?php echo nl2br(htmlspecialchars($user['alamat'])); ?></small></td>
-                                            <td><?php echo date('d M Y, H:i', strtotime($user['tanggal_daftar'])); ?></td>
+                                            <td><?php echo htmlspecialchars((string) ($user['aido_mr'] ?? '-')); ?></td>
+                                            <td><?php echo htmlspecialchars((string) $user['username']); ?></td>
+                                            <td><?php echo htmlspecialchars(!empty($user['email']) ? (string) $user['email'] : '-'); ?></td>
+                                            <td><?php echo htmlspecialchars(!empty($user['no_telepon']) ? (string) $user['no_telepon'] : '-'); ?></td>
+                                            <td><small><?php echo nl2br(htmlspecialchars((string) ($user['alamat'] ?? '-'))); ?></small></td>
+                                            <td><?php echo htmlspecialchars(date('d M Y, H:i', strtotime((string) $user['tanggal_daftar']))); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
