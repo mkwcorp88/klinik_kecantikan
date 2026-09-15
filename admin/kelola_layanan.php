@@ -1,11 +1,10 @@
 <?php
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/admin_auth.php';
 
-// Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: login_admin.php?pesan=belum_login_admin");
-    exit();
-}
+drw_require_admin();
+$adminCabangId = drw_admin_cabang_id();
+$adminCabangNama = drw_admin_display_cabang();
 
 $message = '';
 $message_type = '';
@@ -170,10 +169,19 @@ if ($result_layanans && $result_layanans->num_rows > 0) {
     }
 }
 
-// Data untuk badge di sidebar
-$pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
-$pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
-if($pending_orders_query) $pending_orders_query->close();
+// Data untuk badge di sidebar (order difilter klinik aktif)
+if ($adminCabangId === null) {
+    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
+    $pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
+    if($pending_orders_query) $pending_orders_query->close();
+} else {
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $pending_orders = (int) ($row['total'] ?? 0);
+    $stmt->close();
+}
 
 $pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
 $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
@@ -238,6 +246,7 @@ if($pending_testimoni_query) $pending_testimoni_query->close();
             <header class="admin-header">
                 <h1 class="h4 mb-0 text-gray-800">Kelola Data Layanan</h1>
                 <div class="user-info">
+                    <span class="badge bg-light text-dark border me-2"><i class="fas fa-clinic-medical me-1"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     <span class="text-muted me-2">Admin:</span>
                     <span class="fw-bold text-dark"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
                 </div>

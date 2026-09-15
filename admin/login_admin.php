@@ -1,5 +1,6 @@
 <?php
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/admin_auth.php';
 
 $errors = [];
 $csrfToken = drw_csrf_token();
@@ -9,6 +10,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     header("Location: index.php");
     exit();
 }
+
+$branches = drw_admin_fetch_branches($conn);
+$branchesById = [];
+foreach ($branches as $branch) {
+    $branchesById[(int) $branch['id_cabang']] = $branch;
+}
+
+$selectedCabang = isset($_POST['id_cabang']) ? trim((string) $_POST['id_cabang']) : '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim((string) ($_POST['username'] ?? ''));
@@ -24,28 +33,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Password wajib diisi.";
     }
 
-    if (empty($errors)) {
-        $passwordIsValid = ADMIN_PASSWORD_HASH !== '' && password_verify($password, ADMIN_PASSWORD_HASH);
-        $legacyLocalPasswordIsValid = APP_ENV === 'local'
-            && ADMIN_PASSWORD_PLAIN !== ''
-            && hash_equals(ADMIN_PASSWORD_PLAIN, $password);
+    $chosenCabangId = null;
+    $chosenCabangNama = 'Semua Klinik';
+    if ($selectedCabang !== '') {
+        if (!ctype_digit($selectedCabang) || !isset($branchesById[(int) $selectedCabang])) {
+            $errors[] = 'Pilihan klinik tidak valid.';
+        } else {
+            $chosenCabangId = (int) $selectedCabang;
+            $chosenCabangNama = (string) $branchesById[$chosenCabangId]['nama_cabang'];
+        }
+    }
 
-        if ($username === ADMIN_USERNAME && ($passwordIsValid || $legacyLocalPasswordIsValid)) {
-            unset(
-                $_SESSION['csrf_token'],
-                $_SESSION['user_id'],
-                $_SESSION['username'],
-                $_SESSION['display_name'],
-                $_SESSION['user_auth_provider'],
-                $_SESSION['post_login_redirect']
-            );
-            session_regenerate_id(true);
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_username'] = $username;
+    if (empty($errors)) {
+        $loginOk = false;
+        $sessionAdminId = null;
+        $sessionIsSuper = false;
+        $sessionCabangId = $chosenCabangId;
+        $sessionCabangNama = $chosenCabangNama;
+
+        // 1) Coba akun admin per klinik dari database.
+        $dbAdmin = drw_admin_login_db_account($conn, $username);
+        if (is_array($dbAdmin) && ($dbAdmin['status_admin'] ?? '') === 'aktif' && password_verify($password, (string) $dbAdmin['password_hash'])) {
+            $adminCabangId = $dbAdmin['id_cabang'] !== null ? (int) $dbAdmin['id_cabang'] : null;
+            if ($adminCabangId === null) {
+                // Superadmin boleh memilih semua klinik atau satu klinik tertentu.
+                $loginOk = true;
+                $sessionAdminId = (int) $dbAdmin['id_admin'];
+                $sessionIsSuper = true;
+            } else {
+                if ($chosenCabangId === null || $chosenCabangId !== $adminCabangId) {
+                    $allowedNama = $branchesById[$adminCabangId]['nama_cabang'] ?? 'klinik Anda';
+                    $errors[] = 'Akun ini hanya untuk ' . $allowedNama . '. Pilih klinik tersebut saat login.';
+                } else {
+                    $loginOk = true;
+                    $sessionAdminId = (int) $dbAdmin['id_admin'];
+                    $sessionIsSuper = false;
+                    $sessionCabangId = $adminCabangId;
+                    $sessionCabangNama = (string) ($branchesById[$adminCabangId]['nama_cabang'] ?? $chosenCabangNama);
+                }
+            }
+        } else {
+            // 2) Fallback akun superadmin lama dari env/config (masa transisi).
+            $passwordIsValid = ADMIN_PASSWORD_HASH !== '' && password_verify($password, ADMIN_PASSWORD_HASH);
+            $legacyLocalPasswordIsValid = APP_ENV === 'local'
+                && ADMIN_PASSWORD_PLAIN !== ''
+                && hash_equals(ADMIN_PASSWORD_PLAIN, $password);
+
+            if ($username === ADMIN_USERNAME && ADMIN_USERNAME !== '' && ($passwordIsValid || $legacyLocalPasswordIsValid)) {
+                $loginOk = true;
+                $sessionAdminId = null;
+                $sessionIsSuper = true;
+            } else {
+                $errors[] = "Username, password, atau pilihan klinik salah.";
+            }
+        }
+
+        if ($loginOk && empty($errors)) {
+            drw_admin_set_session($sessionAdminId, $username, $sessionCabangId, $sessionCabangNama, $sessionIsSuper);
             header("Location: index.php"); // Arahkan ke dashboard admin
             exit();
-        } else {
-            $errors[] = "Username atau password admin salah.";
         }
     }
 }
@@ -99,6 +145,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 <form action="login_admin.php" method="post">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+                    <div class="mb-3">
+                        <label for="id_cabang" class="form-label">Pilih Klinik</label>
+                        <select class="form-select" id="id_cabang" name="id_cabang" required>
+                            <option value="" <?php echo $selectedCabang === '' ? 'selected' : ''; ?>>Semua Klinik (superadmin)</option>
+                            <?php foreach ($branches as $branch): ?>
+                                <option value="<?php echo (int) $branch['id_cabang']; ?>" <?php echo $selectedCabang === (string) $branch['id_cabang'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($branch['nama_cabang']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">Admin Purworejo / Kutoarjo / Magelang wajib memilih kliniknya masing-masing.</div>
+                    </div>
                     <div class="mb-3">
                         <label for="username" class="form-label">Username Admin</label>
                         <input type="text" class="form-control" id="username" name="username" required value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>">

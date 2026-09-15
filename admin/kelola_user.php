@@ -1,35 +1,70 @@
 <?php
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/admin_auth.php';
 
-// Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: login_admin.php?pesan=belum_login_admin");
-    exit();
-}
+drw_require_admin();
+$adminCabangId = drw_admin_cabang_id();
+$adminCabangNama = drw_admin_display_cabang();
 
-$search_query_sql = "";
 $users = [];
 $search_term_get = ''; // Untuk repopulate search box
 
 if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
     $search_term_get = trim($_GET['search']);
-    $search_term_sql = $conn->real_escape_string($search_term_get);
-    $search_query_sql = " WHERE nama_lengkap LIKE '%$search_term_sql%' OR username LIKE '%$search_term_sql%' OR email LIKE '%$search_term_sql%' OR no_telepon LIKE '%$search_term_sql%'";
 }
 
-$sql_users = "SELECT id_user, nama_lengkap, username, email, no_telepon, alamat, tanggal_daftar FROM user" . $search_query_sql . " ORDER BY tanggal_daftar DESC";
-$result_users = $conn->query($sql_users);
-
-if ($result_users && $result_users->num_rows > 0) {
-    while ($row = $result_users->fetch_assoc()) {
-        $users[] = $row;
+$search_like = '%' . $search_term_get . '%';
+if ($adminCabangId === null) {
+    if ($search_term_get !== '') {
+        $stmt = $conn->prepare("SELECT id_user, nama_lengkap, username, email, no_telepon, alamat, tanggal_daftar FROM user WHERE nama_lengkap LIKE ? OR username LIKE ? OR email LIKE ? OR no_telepon LIKE ? ORDER BY tanggal_daftar DESC");
+        $stmt->bind_param('ssss', $search_like, $search_like, $search_like, $search_like);
+        $stmt->execute();
+        $result_users = $stmt->get_result();
+        while ($row = $result_users->fetch_assoc()) {
+            $users[] = $row;
+        }
+        $stmt->close();
+    } else {
+        $result_users = $conn->query("SELECT id_user, nama_lengkap, username, email, no_telepon, alamat, tanggal_daftar FROM user ORDER BY tanggal_daftar DESC");
+        if ($result_users) {
+            while ($row = $result_users->fetch_assoc()) {
+                $users[] = $row;
+            }
+            $result_users->close();
+        }
     }
-}
 
-// Data untuk badge di sidebar (konsisten dengan admin/index.php)
-$pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
-$pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
-if($pending_orders_query) $pending_orders_query->close();
+    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
+    $pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
+    if($pending_orders_query) $pending_orders_query->close();
+} else {
+    if ($search_term_get !== '') {
+        $stmt = $conn->prepare("SELECT DISTINCT u.id_user, u.nama_lengkap, u.username, u.email, u.no_telepon, u.alamat, u.tanggal_daftar FROM user u JOIN `order` o ON o.id_user = u.id_user WHERE o.id_cabang = ? AND (u.nama_lengkap LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.no_telepon LIKE ?) ORDER BY u.tanggal_daftar DESC");
+        $stmt->bind_param('issss', $adminCabangId, $search_like, $search_like, $search_like, $search_like);
+        $stmt->execute();
+        $result_users = $stmt->get_result();
+        while ($row = $result_users->fetch_assoc()) {
+            $users[] = $row;
+        }
+        $stmt->close();
+    } else {
+        $stmt = $conn->prepare("SELECT DISTINCT u.id_user, u.nama_lengkap, u.username, u.email, u.no_telepon, u.alamat, u.tanggal_daftar FROM user u JOIN `order` o ON o.id_user = u.id_user WHERE o.id_cabang = ? ORDER BY u.tanggal_daftar DESC");
+        $stmt->bind_param('i', $adminCabangId);
+        $stmt->execute();
+        $result_users = $stmt->get_result();
+        while ($row = $result_users->fetch_assoc()) {
+            $users[] = $row;
+        }
+        $stmt->close();
+    }
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $pending_orders = (int) ($row['total'] ?? 0);
+    $stmt->close();
+}
 
 $pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
 $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
@@ -216,6 +251,7 @@ $conn->close();
             <header class="admin-header">
                 <h1 class="h4 mb-0 text-gray-800">Kelola Data Member</h1>
                 <div class="user-info">
+                    <span class="badge bg-light text-dark border me-2"><i class="fas fa-clinic-medical me-1"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     <span class="text-muted me-2">Admin:</span>
                     <span class="fw-bold text-dark"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
                 </div>

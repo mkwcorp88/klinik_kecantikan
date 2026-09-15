@@ -1,26 +1,33 @@
 <?php
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/admin_auth.php';
 
-// Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: login_admin.php?pesan=belum_login_admin");
-    exit();
-}
+drw_require_admin();
+$adminCabangId = drw_admin_cabang_id();
+$adminCabangNama = drw_admin_display_cabang();
 
 $message = '';
 $message_type = '';
 $csrfToken = drw_csrf_token();
 $allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
 
+// Filter dan Search Logic (cabang admin dipaksa bila bukan superadmin semua klinik)
+$filter_status_get = isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true) ? $_GET['filter_status'] : '';
+$search_user_get = isset($_GET['search_user']) && is_string($_GET['search_user']) ? trim($_GET['search_user']) : '';
+$filter_cabang_get = isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang']) ? (int) $_GET['filter_cabang'] : 0;
+if ($adminCabangId !== null) {
+    $filter_cabang_get = $adminCabangId;
+}
+
 // Parameter untuk filter dan search, agar tetap ada setelah aksi
 $current_query_params = [];
-if(isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true)) $current_query_params['filter_status'] = $_GET['filter_status'];
-if(isset($_GET['search_user']) && !empty($_GET['search_user'])) $current_query_params['search_user'] = $_GET['search_user'];
-if(isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang'])) $current_query_params['filter_cabang'] = (int) $_GET['filter_cabang'];
+if ($filter_status_get !== '') $current_query_params['filter_status'] = $filter_status_get;
+if ($search_user_get !== '') $current_query_params['search_user'] = $search_user_get;
+if ($adminCabangId === null && $filter_cabang_get > 0) $current_query_params['filter_cabang'] = $filter_cabang_get;
 $query_string_params = http_build_query($current_query_params);
 $action_url = "kelola_order.php" . ($query_string_params ? "?".$query_string_params : "");
 
-// Handle Update Status Order
+// Handle Update Status Order (wajib milik klinik admin)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])) {
     if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
         drw_flash('danger', 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.');
@@ -28,17 +35,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])
         $order_id = intval($_POST['order_id']);
         $new_status = is_string($_POST['status_order'] ?? null) ? $_POST['status_order'] : '';
 
-        if (in_array($new_status, $allowed_statuses, true)) {
-            $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
-            $stmt_update->bind_param("si", $new_status, $order_id);
-            if ($stmt_update->execute()) {
-                drw_flash('success', "Status booking ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
-            } else {
-                drw_flash('danger', 'Gagal memperbarui status booking. Terjadi kesalahan internal.');
-            }
-            $stmt_update->close();
-        } else {
+        if (!in_array($new_status, $allowed_statuses, true)) {
             drw_flash('danger', 'Status booking tidak valid.');
+        } else {
+            $allowed = true;
+            if ($adminCabangId !== null) {
+                $stmt_check = $conn->prepare("SELECT id_cabang FROM `order` WHERE id_order = ? LIMIT 1");
+                $stmt_check->bind_param('i', $order_id);
+                $stmt_check->execute();
+                $orderRow = $stmt_check->get_result()->fetch_assoc();
+                $stmt_check->close();
+                if (!$orderRow || (int) ($orderRow['id_cabang'] ?? 0) !== $adminCabangId) {
+                    $allowed = false;
+                    drw_flash('danger', 'Order tersebut bukan milik klinik Anda.');
+                }
+            }
+            if ($allowed) {
+                $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
+                $stmt_update->bind_param("si", $new_status, $order_id);
+                if ($stmt_update->execute()) {
+                    drw_flash('success', "Status booking ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
+                } else {
+                    drw_flash('danger', 'Gagal memperbarui status booking. Terjadi kesalahan internal.');
+                }
+                $stmt_update->close();
+            }
         }
     }
     header("Location: " . $action_url); // Redirect dengan parameter filter/search
@@ -53,30 +74,47 @@ if (isset($_SESSION['flash_message'])) {
     unset($_SESSION['flash_message_type']);
 }
 
-// Filter dan Search Logic
-$filter_status_get = isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true) ? $_GET['filter_status'] : '';
-$search_user_get = isset($_GET['search_user']) && is_string($_GET['search_user']) ? trim($_GET['search_user']) : '';
-$search_user_sql = $conn->real_escape_string($search_user_get);
-$filter_cabang_get = isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang']) ? (int) $_GET['filter_cabang'] : 0;
-
 $branches = [];
-$result_branches = $conn->query('SELECT id_cabang, nama_cabang FROM cabang ORDER BY nama_cabang ASC');
-while ($branch = $result_branches->fetch_assoc()) {
-    $branches[] = $branch;
+$result_branches = $conn->query("SELECT id_cabang, nama_cabang FROM cabang WHERE status_cabang = 'aktif' ORDER BY nama_cabang ASC");
+if ($result_branches) {
+    while ($branch = $result_branches->fetch_assoc()) {
+        $branch['id_cabang'] = (int) $branch['id_cabang'];
+        if ($adminCabangId !== null && $branch['id_cabang'] !== $adminCabangId) {
+            continue;
+        }
+        $branches[] = $branch;
+    }
+    $result_branches->close();
 }
-$result_branches->close();
 
 $orders = [];
+$queryTypes = '';
+$queryParams = [];
 $where_clauses = [];
 
 if (!empty($filter_status_get)) {
-    $where_clauses[] = "o.status_order = '$filter_status_get'";
+    $where_clauses[] = "o.status_order = ?";
+    $queryTypes .= 's';
+    $queryParams[] = $filter_status_get;
 }
 if ($filter_cabang_get > 0) {
-    $where_clauses[] = "o.id_cabang = $filter_cabang_get";
+    $where_clauses[] = "o.id_cabang = ?";
+    $queryTypes .= 'i';
+    $queryParams[] = $filter_cabang_get;
+} elseif ($adminCabangId !== null) {
+    $where_clauses[] = "o.id_cabang = ?";
+    $queryTypes .= 'i';
+    $queryParams[] = $adminCabangId;
 }
+$search_like = null;
 if (!empty($search_user_get)) {
-     $where_clauses[] = "(u.nama_lengkap LIKE '%$search_user_sql%' OR u.username LIKE '%$search_user_sql%' OR u.email LIKE '%$search_user_sql%' OR u.no_telepon LIKE '%$search_user_sql%')";
+     $where_clauses[] = "(u.nama_lengkap LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.no_telepon LIKE ?)";
+     $search_like = '%' . $search_user_get . '%';
+     $queryTypes .= 'ssss';
+     $queryParams[] = $search_like;
+     $queryParams[] = $search_like;
+     $queryParams[] = $search_like;
+     $queryParams[] = $search_like;
 }
 
 $sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan
@@ -89,17 +127,32 @@ if (!empty($where_clauses)) {
 }
 $sql_orders .= " ORDER BY o.tanggal_order_dibuat DESC";
 
-$result_orders = $conn->query($sql_orders);
-if ($result_orders && $result_orders->num_rows > 0) {
+$stmt_orders = $conn->prepare($sql_orders);
+if ($stmt_orders) {
+    if ($queryTypes !== '') {
+        $stmt_orders->bind_param($queryTypes, ...$queryParams);
+    }
+    $stmt_orders->execute();
+    $result_orders = $stmt_orders->get_result();
     while ($row = $result_orders->fetch_assoc()) {
         $orders[] = $row;
     }
+    $stmt_orders->close();
 }
 
-// Data untuk badge di sidebar (konsisten dengan admin/index.php)
-$pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
-$pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
-if($pending_orders_query) $pending_orders_query->close();
+// Data untuk badge di sidebar (difilter klinik aktif)
+if ($adminCabangId === null) {
+    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
+    $pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
+    if($pending_orders_query) $pending_orders_query->close();
+} else {
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $pending_orders = (int) ($row['total'] ?? 0);
+    $stmt->close();
+}
 
 $pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
 $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
@@ -166,6 +219,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
             <header class="admin-header">
                 <h1 class="h4 mb-0 text-gray-800">Kelola Order Pelanggan</h1>
                 <div class="user-info">
+                    <span class="badge bg-light text-dark border me-2"><i class="fas fa-clinic-medical me-1"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     <span class="text-muted me-2">Admin:</span>
                     <span class="fw-bold text-dark"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
                 </div>
@@ -201,12 +255,16 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                             </div>
                             <div class="col-md-3">
                                 <label for="filter_cabang" class="form-label">Cabang</label>
+                                <?php if ($adminCabangId === null): ?>
                                 <select name="filter_cabang" id="filter_cabang" class="form-select form-select-sm">
                                     <option value="">Semua Cabang</option>
                                     <?php foreach ($branches as $branch): ?>
                                         <option value="<?php echo (int) $branch['id_cabang']; ?>" <?php if ($filter_cabang_get === (int) $branch['id_cabang']) echo 'selected'; ?>><?php echo htmlspecialchars($branch['nama_cabang']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
+                                <?php else: ?>
+                                <input type="text" class="form-control form-control-sm" value="<?php echo htmlspecialchars($adminCabangNama); ?>" disabled>
+                                <?php endif; ?>
                             </div>
                             <div class="col-md-2 mt-auto">
                                 <button class="btn btn-primary btn-sm w-100" type="submit"><i class="fas fa-search me-1"></i> Terapkan</button>

@@ -1,24 +1,46 @@
 <?php
 require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/admin_auth.php';
 
-// Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: login_admin.php?pesan=belum_login_admin");
-    exit();
+drw_require_admin();
+$adminCabangId = drw_admin_cabang_id();
+$adminCabangNama = drw_admin_display_cabang();
+
+// Ambil data untuk statistik dashboard (difilter klinik aktif bila bukan superadmin semua klinik)
+if ($adminCabangId === null) {
+    $total_users_query = $conn->query("SELECT COUNT(*) as total FROM user");
+    $total_users = ($total_users_query && $total_users_query->num_rows > 0) ? $total_users_query->fetch_assoc()['total'] : 0;
+    if($total_users_query) $total_users_query->close();
+
+    $total_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order`");
+    $total_orders = ($total_orders_query && $total_orders_query->num_rows > 0) ? $total_orders_query->fetch_assoc()['total'] : 0;
+    if($total_orders_query) $total_orders_query->close();
+
+    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
+    $pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
+    if($pending_orders_query) $pending_orders_query->close();
+} else {
+    $stmt = $conn->prepare("SELECT COUNT(DISTINCT u.id_user) as total FROM user u JOIN `order` o ON o.id_user = u.id_user WHERE o.id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $total_users = (int) ($row['total'] ?? 0);
+    $stmt->close();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $total_orders = (int) ($row['total'] ?? 0);
+    $stmt->close();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND id_cabang = ?");
+    $stmt->bind_param('i', $adminCabangId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $pending_orders = (int) ($row['total'] ?? 0);
+    $stmt->close();
 }
-
-// Ambil data untuk statistik dashboard
-$total_users_query = $conn->query("SELECT COUNT(*) as total FROM user");
-$total_users = ($total_users_query && $total_users_query->num_rows > 0) ? $total_users_query->fetch_assoc()['total'] : 0;
-if($total_users_query) $total_users_query->close();
-
-$total_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order`");
-$total_orders = ($total_orders_query && $total_orders_query->num_rows > 0) ? $total_orders_query->fetch_assoc()['total'] : 0;
-if($total_orders_query) $total_orders_query->close();
-
-$pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
-$pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
-if($pending_orders_query) $pending_orders_query->close();
 
 $pending_testimoni_query = $conn->query("SELECT COUNT(*) as total FROM testimoni WHERE status_testimoni = 'pending'");
 $pending_testimoni = ($pending_testimoni_query && $pending_testimoni_query->num_rows > 0) ? $pending_testimoni_query->fetch_assoc()['total'] : 0;
@@ -303,6 +325,7 @@ $conn->close();
                     </nav> */ ?>
                 </div>
                 <div class="user-info d-flex align-items-center">
+                    <span class="badge bg-light text-dark border me-2"><i class="fas fa-clinic-medical me-1"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     <span class="text-muted me-2">Admin:</span>
                     <span class="fw-bold text-dark"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
                 </div>
