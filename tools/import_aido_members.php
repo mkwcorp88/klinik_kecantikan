@@ -5,8 +5,8 @@ declare(strict_types=1);
 // Idempoten: aman dijalankan berulang kali (pencocokan berdasarkan aido_mr)
 //
 // Contoh penggunaan:
-//   php tools/import_aido_members.php --file=../KlinikPratamadrwestetika/data/aido-members.json
-//   php tools/import_aido_members.php --file=../KlinikPratamadrwestetika/data/aido-members-kutoarjo.json
+//   php tools/import_aido_members.php --file=/path/ke/aido-members.json
+//   php tools/import_aido_members.php --file=/path/ke/aido-members-kutoarjo.json
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -114,10 +114,12 @@ try {
         $row = $stmtSel->get_result()->fetch_assoc();
 
         if ($row) {
-            $stmtUpd->bind_param('sssssi', $nama, $emailV, $noTelp, $alamatV, $idCabang, $mr);
+            // Types: nama(s), email(s), no_telepon(s), alamat(s), id_cabang(i), aido_mr(s) -> ssssis
+            $stmtUpd->bind_param('ssssis', $nama, $emailV, $noTelp, $alamatV, $idCabang, $mr);
             $stmtUpd->execute();
             $updated++;
         } else {
+            // Types: nama(s), username(s), email(s), no_telepon(s), alamat(s), aido_mr(s), id_cabang(i) -> ssssssi
             $stmtIns->bind_param('ssssssi', $nama, $username, $emailV, $noTelp, $alamatV, $mr, $idCabang);
             $stmtIns->execute();
             $inserted++;
