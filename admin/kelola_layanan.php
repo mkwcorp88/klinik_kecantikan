@@ -231,7 +231,6 @@ if ($adminCabangId === null) {
             <ul class="nav flex-column mt-3">
                 <li class="nav-item"><a class="nav-link" href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_user.php"><i class="fas fa-users"></i> Kelola Member</a></li>
-                <li class="nav-item"><a class="nav-link active" aria-current="page" href="kelola_layanan.php"><i class="fas fa-concierge-bell"></i> Kelola Layanan</a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_order.php"><i class="fas fa-shopping-cart"></i> Kelola Order <?php if ($pending_orders > 0) echo "<span class='badge bg-danger ms-1'>$pending_orders</span>"; ?></a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_afiliasi.php"><i class="fas fa-handshake"></i> Afiliator</a></li>
             </ul>

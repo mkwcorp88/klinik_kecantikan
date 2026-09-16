@@ -219,11 +219,6 @@ $conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="kelola_layanan.php">
-                        <i class="fas fa-concierge-bell"></i> Kelola Layanan
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="kelola_order.php">
                         <i class="fas fa-shopping-cart"></i> Kelola Order
                          <?php if ($pending_orders > 0): ?>

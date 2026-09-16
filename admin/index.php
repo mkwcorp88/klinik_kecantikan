@@ -55,10 +55,6 @@ if ($adminCabangId === null) {
     $stmt->close();
 }
 
-$total_layanan_query = $conn->query("SELECT COUNT(*) as total FROM layanan WHERE status_layanan = 'aktif'");
-$total_layanan_aktif = ($total_layanan_query && $total_layanan_query->num_rows > 0) ? $total_layanan_query->fetch_assoc()['total'] : 0;
-if($total_layanan_query) $total_layanan_query->close();
-
 if ($adminCabangId === null) {
     $pending_withdrawals_query = $conn->query("SELECT COUNT(*) as total FROM affiliate_withdrawal WHERE status = 'pending'");
     $pending_withdrawals = ($pending_withdrawals_query && $pending_withdrawals_query->num_rows > 0) ? (int) $pending_withdrawals_query->fetch_assoc()['total'] : 0;
@@ -298,11 +294,6 @@ $conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="kelola_layanan.php">
-                        <i class="fas fa-concierge-bell"></i> Kelola Layanan
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="kelola_order.php">
                         <i class="fas fa-shopping-cart"></i> Kelola Order
                          <?php if ($pending_orders > 0): ?>
@@ -364,7 +355,7 @@ $conn->close();
                 </div>
 
                 <div class="row mb-4">
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card stat-card-enhanced stat-card-primary">
                             <div class="card-body">
                                 <div class="text-xs text-primary">Total Member</div>
@@ -377,7 +368,7 @@ $conn->close();
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card stat-card-enhanced stat-card-success">
                             <div class="card-body">
                                 <div class="text-xs text-success">Total Order</div>
@@ -389,20 +380,7 @@ $conn->close();
                             </a>
                         </div>
                     </div>
-                     <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card stat-card-enhanced stat-card-info">
-                            <div class="card-body">
-                                <div class="text-xs text-info">Layanan Aktif</div>
-                                <div class="h3 text-gray-800"><?php echo $total_layanan_aktif; ?></div>
-                                <i class="fas fa-concierge-bell stat-icon"></i>
-                            </div>
-                            <a href="kelola_layanan.php" class="card-footer d-flex align-items-center justify-content-between">
-                                <span>Lihat Detail</span> <i class="fas fa-arrow-circle-right"></i>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card stat-card-enhanced stat-card-warning">
                             <div class="card-body">
                                 <div class="text-xs text-warning">Afiliator Menunggu Approval</div>
@@ -420,15 +398,7 @@ $conn->close();
                     <div class="col-12">
                         <h3 class="h5 mb-3 text-gray-700"><i class="fas fa-rocket me-2"></i>Aksi Cepat</h3>
                     </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="kelola_layanan.php#formLayanan" class="card quick-action-card text-decoration-none text-dark shadow-sm">
-                            <div class="card-body">
-                                <i class="fas fa-plus-circle text-primary"></i>
-                                <h6 class="card-title">Tambah Layanan</h6>
-                            </div>
-                        </a>
-                    </div>
-                     <div class="col-lg-3 col-md-6 mb-3">
+                     <div class="col-lg-4 col-md-6 mb-3">
                         <a href="kelola_order.php?filter_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
                             <div class="card-body">
                                 <i class="fas fa-hourglass-half text-warning"></i>
@@ -436,7 +406,7 @@ $conn->close();
                             </div>
                         </a>
                     </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="col-lg-4 col-md-6 mb-3">
                         <a href="kelola_afiliasi.php?tab=withdrawals&wd_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
                             <div class="card-body">
                                 <i class="fas fa-money-check-alt text-success"></i>
@@ -444,7 +414,7 @@ $conn->close();
                             </div>
                         </a>
                     </div>
-                    <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="col-lg-4 col-md-6 mb-3">
                         <a href="kelola_user.php" class="card quick-action-card text-decoration-none text-dark shadow-sm">
                             <div class="card-body">
                                 <i class="fas fa-users-cog text-secondary"></i>
