@@ -84,6 +84,16 @@ Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi 001–006 set
 
 Untuk deployment, gunakan HTTPS dan ubah `BASE_URL` serta redirect URI Google ke domain produksi yang sama persis.
 
+## Impor Member AIDO Health
+
+Gunakan CLI tool `tools/import_aido_members.php` untuk mengimpor atau memperbarui data pasien/member dari AIDO Health (Purworejo, Kutoarjo, Magelang) ke database MySQL/MariaDB secara idempoten:
+
+```sh
+php tools/import_aido_members.php --file=/path/ke/aido-members.json
+# Atau impor khusus cabang Kutoarjo:
+php tools/import_aido_members.php --file=/path/ke/aido-members-kutoarjo.json
+```
+
 ## Admin Lokal
 
 Isi `ADMIN_USERNAME` dan `ADMIN_PASSWORD_HASH` di `config.local.php`. Buat hash password menggunakan PHP:
