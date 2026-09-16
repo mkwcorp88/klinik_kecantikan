@@ -1,5 +1,5 @@
 <?php
-require_once '../config.php'; // Path ke config.php dari dalam folder admin
+require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/admin_auth.php';
 
 drw_require_admin();

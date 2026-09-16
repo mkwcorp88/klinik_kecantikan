@@ -1,7 +1,7 @@
 <?php
 // Memulai atau melanjutkan sesi yang ada untuk bisa dihancurkan
 // config.php biasanya sudah memanggil session_start()
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
 // 1. Hapus semua variabel session.
 $_SESSION = array();
