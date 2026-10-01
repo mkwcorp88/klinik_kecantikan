@@ -3,6 +3,7 @@ $pageTitle = $pageTitle ?? NAMA_KLINIK;
 $pageDescription = $pageDescription ?? 'Klinik Pratama DRW Estetika untuk kebutuhan perawatan kulit dan konsultasi Anda.';
 $activePage = $activePage ?? '';
 $bodyClass = $bodyClass ?? 'home-page site-page';
+$pageStyles = isset($pageStyles) && is_array($pageStyles) ? $pageStyles : [];
 $navItems = [
     ['key' => 'home', 'href' => 'index.php', 'label' => 'Beranda'],
     ['key' => 'tentang', 'href' => 'tentang.php', 'label' => 'Tentang'],
@@ -27,6 +28,9 @@ $navItems = [
     <link rel="stylesheet" href="css/style.css?v=3">
     <link rel="stylesheet" href="css/home.css?v=4">
     <link rel="stylesheet" href="css/site.css?v=8">
+    <?php foreach ($pageStyles as $pageStyle): ?>
+        <link rel="stylesheet" href="<?= htmlspecialchars((string) $pageStyle, ENT_QUOTES, 'UTF-8') ?>">
+    <?php endforeach; ?>
 </head>
 <body class="<?= htmlspecialchars($bodyClass, ENT_QUOTES, 'UTF-8') ?>">
     <nav class="navbar navbar-expand-xl navbar-light drw-navbar sticky-top">

@@ -7,6 +7,7 @@ $pageTitle = 'Dashboard Afiliator | ' . NAMA_KLINIK;
 $pageDescription = 'Program kemitraan afiliasi Klinik Pratama DRW Estetika. Dapatkan komisi 10% dari setiap referral perawatan.';
 $activePage = 'afiliasi';
 $bodyClass = 'affiliate-page site-page';
+$pageStyles = ['css/affiliate.css?v=1'];
 
 $csrfToken = drw_csrf_token();
 $isLoggedIn = drw_is_logged_in();
@@ -244,10 +245,10 @@ $affiliateStatusClass = [
 require 'partials/site_header.php';
 ?>
 
-<main class="py-4 py-md-5">
+<main class="affiliate-main py-4 py-md-5">
     <div class="container">
         <?php if ($flash): ?>
-            <div class="alert alert-<?= htmlspecialchars($flash['type'], ENT_QUOTES, 'UTF-8') ?> alert-dismissible fade show" role="alert">
+            <div class="alert affiliate-flash alert-<?= htmlspecialchars($flash['type'], ENT_QUOTES, 'UTF-8') ?> alert-dismissible fade show" role="alert">
                 <?= htmlspecialchars($flash['message'], ENT_QUOTES, 'UTF-8') ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
             </div>
@@ -255,7 +256,7 @@ require 'partials/site_header.php';
 
         <?php if (!$isLoggedIn): ?>
             <!-- PUBLIC VIEW: INFORMASI PROGRAM AFILIASI -->
-            <section class="drw-inner-hero text-center mb-5">
+            <section class="drw-inner-hero affiliate-public-hero text-center mb-5">
                 <div class="row justify-content-center">
                     <div class="col-lg-9">
                         <span class="drw-hero-label text-uppercase"><i class="fa-solid fa-handshake me-1"></i> PROGRAM AFILIASI KLINIK</span>
@@ -263,23 +264,28 @@ require 'partials/site_header.php';
                         <p class="lead text-muted mt-3">Bagikan link referral Anda kepada teman, keluarga, atau media sosial. Dapatkan penghasilan tambahan otomatis setiap kali mereka melakukan perawatan di Klinik DRW Estetika.</p>
                         <div class="mt-4 d-flex flex-wrap gap-2 justify-content-center">
                             <a class="btn drw-btn-primary px-4 py-2" href="login.php?redirect=afiliasi.php"><i class="fa-regular fa-user me-1"></i> Masuk ke Dashboard Afiliator</a>
-                            <a class="btn btn-outline-secondary px-4 py-2" href="daftar.php"><i class="fa-solid fa-user-plus me-1"></i> Daftar Akun Pasien</a>
+                            <a class="btn affiliate-outline-button px-4 py-2" href="daftar.php"><i class="fa-solid fa-user-plus me-1"></i> Daftar Akun Pasien</a>
+                        </div>
+                        <div class="affiliate-public-trust-row" aria-label="Keunggulan program afiliasi">
+                            <span><i class="fa-solid fa-sparkles"></i> Komisi 10%</span>
+                            <span><i class="fa-solid fa-clock"></i> Tracking 30 hari</span>
+                            <span><i class="fa-solid fa-wallet"></i> Pencairan fleksibel</span>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- 4 LANGKAH CARA KERJA -->
-            <section class="mb-5">
-                <div class="drw-section-intro text-center mb-4">
+            <section class="affiliate-steps mb-5">
+                <div class="drw-section-intro affiliate-section-intro text-center mb-4">
                     <div class="drw-section-kicker">CARA KERJA MUDAH</div>
                     <h2>Langkah Menjadi <em>Afiliator.</em></h2>
                     <p>Sistem otomatis, transparan, dan terintegrasi langsung dengan reservasi klinik.</p>
                 </div>
                 <div class="row g-4">
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm border-0 text-center p-4">
-                            <div class="rounded-circle bg-light text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:64px;height:64px;font-size:1.5rem;">
+                        <div class="card affiliate-step-card h-100 text-center p-4">
+                            <div class="affiliate-step-icon mx-auto mb-3">
                                 <i class="fa-solid fa-id-card"></i>
                             </div>
                             <h5 class="fw-bold">1. Dapatkan Kode</h5>
@@ -287,8 +293,8 @@ require 'partials/site_header.php';
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm border-0 text-center p-4">
-                            <div class="rounded-circle bg-light text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:64px;height:64px;font-size:1.5rem;">
+                        <div class="card affiliate-step-card h-100 text-center p-4">
+                            <div class="affiliate-step-icon mx-auto mb-3">
                                 <i class="fa-solid fa-share-nodes"></i>
                             </div>
                             <h5 class="fw-bold">2. Bagikan Link</h5>
@@ -296,8 +302,8 @@ require 'partials/site_header.php';
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm border-0 text-center p-4">
-                            <div class="rounded-circle bg-light text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:64px;height:64px;font-size:1.5rem;">
+                        <div class="card affiliate-step-card h-100 text-center p-4">
+                            <div class="affiliate-step-icon mx-auto mb-3">
                                 <i class="fa-solid fa-calendar-check"></i>
                             </div>
                             <h5 class="fw-bold">3. Pasien Treatment</h5>
@@ -305,8 +311,8 @@ require 'partials/site_header.php';
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card h-100 shadow-sm border-0 text-center p-4">
-                            <div class="rounded-circle bg-light text-primary mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:64px;height:64px;font-size:1.5rem;">
+                        <div class="card affiliate-step-card h-100 text-center p-4">
+                            <div class="affiliate-step-icon mx-auto mb-3">
                                 <i class="fa-solid fa-wallet"></i>
                             </div>
                             <h5 class="fw-bold">4. Tarik Komisi</h5>
@@ -317,36 +323,36 @@ require 'partials/site_header.php';
             </section>
 
             <!-- KEUNGGULAN -->
-            <section class="card border-0 shadow-sm p-4 p-md-5 bg-light mb-5">
+            <section class="card affiliate-benefits-card p-4 p-md-5 mb-5">
                 <div class="row align-items-center gy-4">
                     <div class="col-lg-6">
                         <span class="drw-section-kicker">KEUNTUNGAN MITRA</span>
                         <h2 class="fw-bold mb-3">Mengapa Bergabung dengan Afiliasi DRW?</h2>
                         <ul class="list-unstyled mb-0 d-grid gap-3">
-                            <li class="d-flex align-items-start">
-                                <i class="fa-solid fa-circle-check text-success me-3 mt-1 fs-5"></i>
+                            <li class="affiliate-benefit-item d-flex align-items-start">
+                                <i class="fa-solid fa-circle-check me-3 mt-1 fs-5"></i>
                                 <div><strong>Komisi 10% Nyata:</strong> Dihitung langsung dari biaya perawatan pasien yang berhasil diselesaikan.</div>
                             </li>
-                            <li class="d-flex align-items-start">
-                                <i class="fa-solid fa-circle-check text-success me-3 mt-1 fs-5"></i>
+                            <li class="affiliate-benefit-item d-flex align-items-start">
+                                <i class="fa-solid fa-circle-check me-3 mt-1 fs-5"></i>
                                 <div><strong>Tracking Otomatis 30 Hari:</strong> Sistem mengingat referral pasien hingga 30 hari melalui cookie & session.</div>
                             </li>
-                            <li class="d-flex align-items-start">
-                                <i class="fa-solid fa-circle-check text-success me-3 mt-1 fs-5"></i>
+                            <li class="affiliate-benefit-item d-flex align-items-start">
+                                <i class="fa-solid fa-circle-check me-3 mt-1 fs-5"></i>
                                 <div><strong>Pencairan Fleksibel:</strong> Transfer dana langsung ke semua bank nasional (BCA, Mandiri, BRI, BNI, BSI) & E-Wallet (DANA, GoPay, OVO, ShopeePay).</div>
                             </li>
-                            <li class="d-flex align-items-start">
-                                <i class="fa-solid fa-circle-check text-success me-3 mt-1 fs-5"></i>
+                            <li class="affiliate-benefit-item d-flex align-items-start">
+                                <i class="fa-solid fa-circle-check me-3 mt-1 fs-5"></i>
                                 <div><strong>Layanan Terpercaya:</strong> Didukung oleh dokter & beautician profesional di Purworejo, Kutoarjo, dan Magelang.</div>
                             </li>
                         </ul>
                     </div>
                     <div class="col-lg-6 text-center">
-                        <div class="p-4 bg-white rounded-3 shadow-sm border">
+                        <div class="affiliate-join-card p-4">
                             <h4 class="fw-bold mb-2">Mulai Sekarang</h4>
                             <p class="text-muted small mb-4">Sudah punya akun pasien? Masuk sekarang untuk melihat kode unik Anda.</p>
                             <a class="btn drw-btn-primary w-100 mb-2 py-2" href="login.php?redirect=afiliasi.php">Masuk Akun Pasien</a>
-                            <a class="btn btn-outline-secondary w-100 py-2" href="daftar.php">Daftar Akun Baru</a>
+                            <a class="btn affiliate-outline-button w-100 py-2" href="daftar.php">Daftar Akun Baru</a>
                         </div>
                     </div>
                 </div>
@@ -354,52 +360,52 @@ require 'partials/site_header.php';
 
         <?php else: ?>
             <!-- MEMBER VIEW: DASHBOARD AFILIATOR TERPADU -->
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+            <div class="affiliate-dashboard-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
                 <div>
-                    <span class="badge <?= $affiliateStatusClass ?> px-3 py-1 mb-1 font-monospace fw-semibold"><i class="fa-solid fa-certificate me-1"></i> <?= htmlspecialchars($affiliateStatusLabel, ENT_QUOTES, 'UTF-8') ?></span>
-                    <h1 class="h3 fw-bold mb-0">Dashboard Afiliator</h1>
-                    <p class="text-muted small mb-0">Hai <strong><?= htmlspecialchars((string) ($currentUser['nama_lengkap'] ?? $_SESSION['username']), ENT_QUOTES, 'UTF-8') ?></strong>, kelola referral dan penghasilan komisi Anda di sini.</p>
+                    <span class="affiliate-status-pill badge <?= $affiliateStatusClass ?> px-3 py-1 mb-1 font-monospace fw-semibold"><i class="fa-solid fa-certificate me-1"></i> <?= htmlspecialchars($affiliateStatusLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                    <h1 class="affiliate-dashboard-title h3 fw-bold mb-0">Dashboard Afiliator</h1>
+                    <p class="affiliate-dashboard-copy text-muted small mb-0">Hai <strong><?= htmlspecialchars((string) ($currentUser['nama_lengkap'] ?? $_SESSION['username']), ENT_QUOTES, 'UTF-8') ?></strong>, kelola referral dan penghasilan komisi Anda di sini.</p>
                 </div>
                 <div>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#withdrawModal" <?= $affiliateStatus !== 'aktif' || $stats['total_komisi'] < 50000 ? 'disabled' : '' ?>>
+                    <button class="btn affiliate-withdraw-button" data-bs-toggle="modal" data-bs-target="#withdrawModal" <?= $affiliateStatus !== 'aktif' || $stats['total_komisi'] < 50000 ? 'disabled' : '' ?>>
                         <i class="fa-solid fa-money-bill-wave me-1"></i> Tarik Komisi
                     </button>
                 </div>
             </div>
 
             <!-- CARD KODE AFILIASI & LINK REFERRAL -->
-            <div class="card shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #2b2520 0%, #1a1614 100%); color: #fff;">
+            <section class="card affiliate-code-card mb-4">
                 <div class="card-body p-4 p-md-5">
                     <div class="row align-items-center gy-4">
                         <div class="col-lg-6">
-                            <span class="text-warning text-uppercase small fw-bold tracking-wider mb-2 d-block"><i class="fa-solid fa-key me-1"></i> Kode Afiliasi Anda</span>
+                            <span class="affiliate-code-label text-uppercase small fw-bold tracking-wider mb-2 d-block"><i class="fa-solid fa-key me-1"></i> Kode Afiliasi Anda</span>
                             <div class="d-flex align-items-baseline gap-3 mb-2">
-                                <span class="display-5 font-monospace fw-bold text-warning" id="affiliateCodeDisplay"><?= htmlspecialchars($affiliateCode, ENT_QUOTES, 'UTF-8') ?></span>
-                                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#editCodeModal" title="Ubah Kode Afiliasi">
+                                <span class="affiliate-code display-5 font-monospace fw-bold" id="affiliateCodeDisplay"><?= htmlspecialchars($affiliateCode, ENT_QUOTES, 'UTF-8') ?></span>
+                                <button class="btn btn-sm affiliate-edit-code" data-bs-toggle="modal" data-bs-target="#editCodeModal" title="Ubah Kode Afiliasi">
                                     <i class="fa-solid fa-pen-to-square"></i> Ubah
                                 </button>
                             </div>
-                            <p class="text-white-50 small mb-0">Komisi 10% otomatis tercatat setiap kali pasien menyelesaikan reservasi menggunakan kode Anda.</p>
+                            <p class="affiliate-code-copy small mb-0">Komisi 10% otomatis tercatat setiap kali pasien menyelesaikan reservasi menggunakan kode Anda.</p>
                         </div>
                         <div class="col-lg-6">
                             <?php if ($affiliateStatus === 'aktif'): ?>
-                                <label class="form-label text-white-50 small mb-1">Tautan Referral Siap Bagikan:</label>
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control form-control-sm font-monospace bg-dark text-white border-secondary" id="referralLinkInput" value="<?= htmlspecialchars($referralLink, ENT_QUOTES, 'UTF-8') ?>" readonly>
-                                    <button class="btn btn-warning btn-sm px-3 fw-bold" type="button" id="btnCopyLink">
+                                <label class="affiliate-link-label form-label small mb-1">Tautan Referral Siap Bagikan:</label>
+                                <div class="input-group affiliate-link-group mb-3">
+                                    <input type="text" class="form-control form-control-sm font-monospace affiliate-link-input" id="referralLinkInput" value="<?= htmlspecialchars($referralLink, ENT_QUOTES, 'UTF-8') ?>" readonly>
+                                    <button class="btn affiliate-copy-button btn-sm px-3 fw-bold" type="button" id="btnCopyLink">
                                         <i class="fa-solid fa-copy me-1"></i> Salin Link
                                     </button>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#qrModal">
+                                <div class="affiliate-share-actions d-flex gap-2">
+                                    <button class="btn btn-sm affiliate-qr-button" data-bs-toggle="modal" data-bs-target="#qrModal">
                                         <i class="fa-solid fa-qrcode me-1"></i> Tampilkan QR Code
                                     </button>
-                                    <a class="btn btn-sm btn-success" href="https://api.whatsapp.com/send?text=<?= urlencode('Yuk konsultasi dan treatment di Klinik DRW Estetika menggunakan link referral saya: ' . $referralLink) ?>" target="_blank" rel="noopener noreferrer">
+                                    <a class="btn btn-sm affiliate-whatsapp-button" href="https://api.whatsapp.com/send?text=<?= urlencode('Yuk konsultasi dan treatment di Klinik DRW Estetika menggunakan link referral saya: ' . $referralLink) ?>" target="_blank" rel="noopener noreferrer">
                                         <i class="fa-brands fa-whatsapp me-1"></i> Share ke WhatsApp
                                     </a>
                                 </div>
                             <?php else: ?>
-                                <div class="alert alert-warning mb-0">
+                                <div class="alert affiliate-pending-notice mb-0">
                                     <strong><i class="fa-solid fa-clock me-1"></i> <?= htmlspecialchars($affiliateStatusLabel, ENT_QUOTES, 'UTF-8') ?></strong>
                                     <div class="small mt-1">Link referral dan penarikan komisi akan aktif setelah admin menyetujui akun afiliator Anda.</div>
                                 </div>
@@ -407,87 +413,87 @@ require 'partials/site_header.php';
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- 4 STATS CARDS -->
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-4 affiliate-stats">
                 <div class="col-sm-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                    <div class="card affiliate-stat-card affiliate-stat-card--balance h-100 p-3">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Saldo Komisi</span>
-                            <span class="badge bg-success-subtle text-success p-2 rounded-circle"><i class="fa-solid fa-wallet"></i></span>
+                            <span class="affiliate-stat-label text-muted small fw-semibold">Saldo Komisi</span>
+                            <span class="affiliate-stat-icon"><i class="fa-solid fa-wallet"></i></span>
                         </div>
-                        <h3 class="fw-bold mb-1 text-dark">Rp <?= number_format($stats['total_komisi'], 0, ',', '.') ?></h3>
-                        <span class="text-muted small">Siap dicairkan (Min Rp 50.000)</span>
+                        <h3 class="affiliate-stat-value fw-bold mb-1">Rp <?= number_format($stats['total_komisi'], 0, ',', '.') ?></h3>
+                        <span class="affiliate-stat-note text-muted small">Siap dicairkan (Min Rp 50.000)</span>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                    <div class="card affiliate-stat-card affiliate-stat-card--withdrawn h-100 p-3">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Total Ditarik</span>
-                            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle"><i class="fa-solid fa-money-bill-transfer"></i></span>
+                            <span class="affiliate-stat-label text-muted small fw-semibold">Total Ditarik</span>
+                            <span class="affiliate-stat-icon"><i class="fa-solid fa-money-bill-transfer"></i></span>
                         </div>
-                        <h3 class="fw-bold mb-1 text-dark">Rp <?= number_format($stats['total_ditarik'], 0, ',', '.') ?></h3>
-                        <span class="text-muted small">Telah berhasil dicairkan</span>
+                        <h3 class="affiliate-stat-value fw-bold mb-1">Rp <?= number_format($stats['total_ditarik'], 0, ',', '.') ?></h3>
+                        <span class="affiliate-stat-note text-muted small">Telah berhasil dicairkan</span>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                    <div class="card affiliate-stat-card affiliate-stat-card--referrals h-100 p-3">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Pasien Berhasil</span>
-                            <span class="badge bg-info-subtle text-info p-2 rounded-circle"><i class="fa-solid fa-user-check"></i></span>
+                            <span class="affiliate-stat-label text-muted small fw-semibold">Pasien Berhasil</span>
+                            <span class="affiliate-stat-icon"><i class="fa-solid fa-user-check"></i></span>
                         </div>
-                        <h3 class="fw-bold mb-1 text-dark"><?= number_format($stats['total_referral'], 0, ',', '.') ?></h3>
-                        <span class="text-muted small">Treatment selesai</span>
+                        <h3 class="affiliate-stat-value fw-bold mb-1"><?= number_format($stats['total_referral'], 0, ',', '.') ?></h3>
+                        <span class="affiliate-stat-note text-muted small">Treatment selesai</span>
                     </div>
                 </div>
                 <div class="col-sm-6 col-lg-3">
-                    <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                    <div class="card affiliate-stat-card affiliate-stat-card--pending h-100 p-3">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Booking Pending</span>
-                            <span class="badge bg-warning-subtle text-warning p-2 rounded-circle"><i class="fa-solid fa-clock"></i></span>
+                            <span class="affiliate-stat-label text-muted small fw-semibold">Booking Pending</span>
+                            <span class="affiliate-stat-icon"><i class="fa-solid fa-clock"></i></span>
                         </div>
-                        <h3 class="fw-bold mb-1 text-dark"><?= number_format($stats['pending_orders'], 0, ',', '.') ?></h3>
-                        <span class="text-muted small">Menunggu kunjungan</span>
+                        <h3 class="affiliate-stat-value fw-bold mb-1"><?= number_format($stats['pending_orders'], 0, ',', '.') ?></h3>
+                        <span class="affiliate-stat-note text-muted small">Menunggu kunjungan</span>
                     </div>
                 </div>
             </div>
 
             <!-- TABS RIWAYAT: REFERRAL, WITHDRAWAL, MUTASI -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom pt-3">
-                    <ul class="nav nav-tabs card-header-tabs" id="affiliateTab" role="tablist">
+            <section class="card affiliate-history-card">
+                <div class="card-header affiliate-history-header pt-3">
+                    <ul class="nav nav-tabs card-header-tabs affiliate-history-tabs" id="affiliateTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-semibold" id="referrals-tab" data-bs-toggle="tab" data-bs-target="#referrals" type="button" role="tab" aria-controls="referrals" aria-selected="true">
+                            <button class="nav-link affiliate-tab active fw-semibold" id="referrals-tab" data-bs-toggle="tab" data-bs-target="#referrals" type="button" role="tab" aria-controls="referrals" aria-selected="true">
                                 <i class="fa-solid fa-users me-1"></i> Pasien Referral (<?= count($referrals) ?>)
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-semibold" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button" role="tab" aria-controls="withdrawals" aria-selected="false">
+                            <button class="nav-link affiliate-tab fw-semibold" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button" role="tab" aria-controls="withdrawals" aria-selected="false">
                                 <i class="fa-solid fa-receipt me-1"></i> Riwayat Penarikan (<?= count($withdrawals) ?>)
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-semibold" id="mutations-tab" data-bs-toggle="tab" data-bs-target="#mutations" type="button" role="tab" aria-controls="mutations" aria-selected="false">
+                            <button class="nav-link affiliate-tab fw-semibold" id="mutations-tab" data-bs-toggle="tab" data-bs-target="#mutations" type="button" role="tab" aria-controls="mutations" aria-selected="false">
                                 <i class="fa-solid fa-clock-rotate-left me-1"></i> Mutasi Saldo (<?= count($mutations) ?>)
                             </button>
                         </li>
                     </ul>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body affiliate-history-body p-0">
                     <div class="tab-content" id="affiliateTabContent">
                         <!-- TAB 1: REFERRALS -->
-                        <div class="tab-pane fade show active p-3 p-md-4" id="referrals" role="tabpanel" aria-labelledby="referrals-tab">
+                        <div class="tab-pane affiliate-tab-pane fade show active p-3 p-md-4" id="referrals" role="tabpanel" aria-labelledby="referrals-tab">
                             <?php if (empty($referrals)): ?>
-                                <div class="text-center py-5 text-muted">
+                                <div class="affiliate-empty-state text-center py-5 text-muted">
                                     <i class="fa-solid fa-user-group fs-1 text-black-50 mb-3 d-block"></i>
                                     <p class="mb-2">Belum ada pasien yang booking menggunakan kode referral Anda.</p>
                                     <p class="small text-muted mb-0">Bagikan link atau kode referral Anda sekarang untuk mulai mendapatkan komisi.</p>
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light">
+                                    <table class="table affiliate-table table-hover align-middle mb-0">
+                                        <thead>
                                             <tr>
                                                 <th>Tanggal</th>
                                                 <th>Pasien</th>
@@ -543,16 +549,16 @@ require 'partials/site_header.php';
                         </div>
 
                         <!-- TAB 2: WITHDRAWALS -->
-                        <div class="tab-pane fade p-3 p-md-4" id="withdrawals" role="tabpanel" aria-labelledby="withdrawals-tab">
+                        <div class="tab-pane affiliate-tab-pane fade p-3 p-md-4" id="withdrawals" role="tabpanel" aria-labelledby="withdrawals-tab">
                             <?php if (empty($withdrawals)): ?>
-                                <div class="text-center py-5 text-muted">
+                                <div class="affiliate-empty-state text-center py-5 text-muted">
                                     <i class="fa-solid fa-receipt fs-1 text-black-50 mb-3 d-block"></i>
                                     <p class="mb-0">Belum ada riwayat penarikan komisi.</p>
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light">
+                                    <table class="table affiliate-table table-hover align-middle mb-0">
+                                        <thead>
                                             <tr>
                                                 <th>Tanggal</th>
                                                 <th>Nominal</th>
@@ -592,16 +598,16 @@ require 'partials/site_header.php';
                         </div>
 
                         <!-- TAB 3: MUTASI -->
-                        <div class="tab-pane fade p-3 p-md-4" id="mutations" role="tabpanel" aria-labelledby="mutations-tab">
+                        <div class="tab-pane affiliate-tab-pane fade p-3 p-md-4" id="mutations" role="tabpanel" aria-labelledby="mutations-tab">
                             <?php if (empty($mutations)): ?>
-                                <div class="text-center py-5 text-muted">
+                                <div class="affiliate-empty-state text-center py-5 text-muted">
                                     <i class="fa-solid fa-list-ol fs-1 text-black-50 mb-3 d-block"></i>
                                     <p class="mb-0">Belum ada catatan mutasi saldo.</p>
                                 </div>
                             <?php else: ?>
                                 <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light">
+                                    <table class="table affiliate-table table-hover align-middle mb-0">
+                                        <thead>
                                             <tr>
                                                 <th>Waktu</th>
                                                 <th>Tipe</th>
@@ -639,12 +645,12 @@ require 'partials/site_header.php';
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- MODAL TARIK KOMISI -->
             <div class="modal fade" id="withdrawModal" tabindex="-1" aria-labelledby="withdrawModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
-                    <form method="POST" action="afiliasi.php" class="modal-content border-0 shadow">
+                    <form method="POST" action="afiliasi.php" class="modal-content affiliate-modal-content border-0 shadow">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <input type="hidden" name="action" value="request_withdrawal">
                         <div class="modal-header">
@@ -714,7 +720,7 @@ require 'partials/site_header.php';
             <!-- MODAL UBAH KODE AFILIASI -->
             <div class="modal fade" id="editCodeModal" tabindex="-1" aria-labelledby="editCodeModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
-                    <form method="POST" action="afiliasi.php" class="modal-content border-0 shadow">
+                    <form method="POST" action="afiliasi.php" class="modal-content affiliate-modal-content border-0 shadow">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <input type="hidden" name="action" value="update_code">
                         <div class="modal-header">
@@ -742,13 +748,13 @@ require 'partials/site_header.php';
             <!-- MODAL QR CODE REFERRAL -->
             <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered text-center">
-                    <div class="modal-content border-0 shadow">
+                    <div class="modal-content affiliate-modal-content border-0 shadow">
                         <div class="modal-header">
                             <h5 class="modal-title fw-bold" id="qrModalLabel"><i class="fa-solid fa-qrcode text-primary me-2"></i>QR Code Referral</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                         </div>
                         <div class="modal-body py-4">
-                            <div id="qrcodeCanvas" class="d-flex justify-content-center mb-3"></div>
+                            <div id="qrcodeCanvas" class="affiliate-qr-canvas d-flex justify-content-center mb-3"></div>
                             <p class="font-monospace fw-bold text-dark mb-1 fs-5"><?= htmlspecialchars($affiliateCode, ENT_QUOTES, 'UTF-8') ?></p>
                             <p class="small text-muted mb-3">Tunjukkan QR code ini kepada calon pasien untuk langsung membuka form booking dengan kode referral Anda.</p>
                             <button class="btn btn-outline-primary btn-sm" id="btnDownloadQr">
@@ -775,12 +781,10 @@ document.addEventListener('DOMContentLoaded', function () {
             navigator.clipboard.writeText(linkInput.value).then(function () {
                 var originalHtml = copyBtn.innerHTML;
                 copyBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Tersalin!';
-                copyBtn.classList.remove('btn-warning');
-                copyBtn.classList.add('btn-success');
+                copyBtn.classList.add('is-copied');
                 setTimeout(function () {
                     copyBtn.innerHTML = originalHtml;
-                    copyBtn.classList.remove('btn-success');
-                    copyBtn.classList.add('btn-warning');
+                    copyBtn.classList.remove('is-copied');
                 }, 2000);
             });
         });
@@ -797,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     text: linkInput.value,
                     width: 200,
                     height: 200,
-                    colorDark: "#1a1614",
+                    colorDark: "#5a1e44",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.H
                 });
