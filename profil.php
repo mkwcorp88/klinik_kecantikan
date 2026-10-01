@@ -164,7 +164,7 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
     <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand" href="index.php">
-                <img src="images/klinik-pratama-drw-estetika-logo.png" alt="Klinik Pratama DRW Estetika" width="1500" height="415">
+                <img src="images/klinik-pratama-drw-estetika-logo.png" alt="Klinik Pratama DRW Estetika" height="40">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
