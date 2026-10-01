@@ -147,6 +147,12 @@ $form_nama_lengkap = (!empty($errors_detail) && isset($_POST['nama_lengkap'])) ?
 $form_email = (!empty($errors_detail) && isset($_POST['email'])) ? htmlspecialchars($_POST['email']) : htmlspecialchars($user_data['email'] ?? '');
 $form_no_telepon = (!empty($errors_detail) && isset($_POST['no_telepon'])) ? htmlspecialchars($_POST['no_telepon']) : htmlspecialchars($user_data['no_telepon']);
 $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecialchars($_POST['alamat']) : htmlspecialchars($user_data['alamat']);
+$profileDisplayName = trim((string) ($user_data['nama_lengkap'] ?? ''));
+if ($profileDisplayName === '') {
+    $profileDisplayName = (string) $user_data['username'];
+}
+$profileInitial = strtoupper(substr($profileDisplayName, 0, 1));
+$hasGoogleAccount = !empty($user_data['google_sub']);
 
 ?>
 <!doctype html>
@@ -155,22 +161,23 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Profil Saya - <?php echo NAMA_KLINIK; ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Raleway:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap" rel="stylesheet">
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="css/profile.css?v=1" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body class="d-flex flex-column min-vh-100"> <?php /* STICKY FOOTER */ ?>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+<body class="profile-page d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg navbar-light profile-navbar sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="index.php">
-                <img src="images/klinik-pratama-drw-estetika-logo.png" alt="Klinik Pratama DRW Estetika" height="40">
+            <a class="navbar-brand profile-brand" href="index.php">
+                <img class="profile-brand-logo" src="images/klinik-pratama-drw-estetika-logo.png" alt="Klinik Pratama DRW Estetika">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler profile-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Buka navigasi">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-lg-center profile-nav-links">
                     <li class="nav-item"><a class="nav-link <?php if(basename($_SERVER['PHP_SELF']) == 'index.php') echo 'active'; ?>" href="index.php">Home</a></li>
                     <li class="nav-item"><a class="nav-link <?php if(basename($_SERVER['PHP_SELF']) == 'layanan_tampil.php') echo 'active'; ?>" href="layanan_tampil.php">Layanan</a></li>
                     <li class="nav-item"><a class="nav-link <?php if(basename($_SERVER['PHP_SELF']) == 'testimoni_tampil.php') echo 'active'; ?>" href="testimoni_tampil.php">Testimoni Publik</a></li>
@@ -180,10 +187,10 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                             <a class="nav-link dropdown-toggle <?php
                                 $user_pages = ['riwayat_order.php', 'testimoni_buat.php', 'profil.php'];
                                 if (in_array(basename($_SERVER['PHP_SELF']), $user_pages)) echo 'active';
-                            ?>" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-current="page">
-                                <i class="fas fa-user-circle"></i> Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
+                            ?> profile-account-link" href="#" id="navbarDropdownUser" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-current="page">
+                                <span class="profile-nav-avatar"><?php echo htmlspecialchars($profileInitial); ?></span>Halo, <?php echo htmlspecialchars($_SESSION['display_name'] ?? $_SESSION['username']); ?>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
+                            <ul class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="navbarDropdownUser">
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'riwayat_order.php') echo 'active'; ?>" href="riwayat_order.php"><i class="fas fa-history"></i> Riwayat Pesanan</a></li>
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'testimoni_buat.php') echo 'active'; ?>" href="testimoni_buat.php"><i class="fas fa-comment-medical"></i> Buat Review / Testimoni Saya</a></li>
                                 <li><a class="dropdown-item <?php if(basename($_SERVER['PHP_SELF']) == 'profil.php') echo 'active'; ?>" href="profil.php"><i class="fas fa-user-edit"></i> Profil Saya</a></li>
@@ -208,8 +215,23 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
         </div>
     </nav>
 
-    <main class="container mt-5 mb-5 flex-grow-1"> <?php /* STICKY FOOTER */ ?>
-        <h1 class="text-center mb-5 section-title">Profil Saya</h1>
+    <main class="profile-main flex-grow-1">
+        <div class="container">
+            <section class="profile-hero" aria-labelledby="profile-title">
+                <div>
+                    <span class="profile-eyebrow">AREA PASIEN</span>
+                    <h1 id="profile-title">Profil <em>Anda.</em></h1>
+                    <p>Kelola informasi pribadi, detail kontak, dan keamanan akun dalam satu tempat.</p>
+                </div>
+                <div class="profile-identity">
+                    <span class="profile-avatar" aria-hidden="true"><?php echo htmlspecialchars($profileInitial); ?></span>
+                    <div>
+                        <span class="profile-identity-label">AKUN PASIEN</span>
+                        <strong><?php echo htmlspecialchars($profileDisplayName); ?></strong>
+                        <span class="profile-status"><i class="fa-solid fa-shield-heart"></i><?php echo $hasGoogleAccount ? ' Login Google terhubung' : ' Akun lokal aktif'; ?></span>
+                    </div>
+                </div>
+            </section>
 
         <?php if (isset($message_redirect_error)): ?>
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
@@ -224,10 +246,10 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
             </div>
         <?php endif; ?>
 
-        <div class="row">
-            <div class="col-lg-7 mb-4">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-primary text-white">
+        <div class="row g-4 profile-layout">
+            <div class="col-xl-8">
+                <div class="card profile-glass profile-detail-card h-100">
+                    <div class="card-header profile-card-header">
                         <h5 class="mb-0"><i class="fas fa-id-card"></i> Informasi Akun</h5>
                     </div>
                     <div class="card-body">
@@ -289,10 +311,10 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                 </div>
             </div>
 
-            <div class="col-lg-5 mb-4">
+            <div class="col-xl-4">
                 <?php if ($user_data['password'] !== null): ?>
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-secondary text-white">
+                <div class="card profile-glass profile-security-card h-100">
+                    <div class="card-header profile-card-header">
                          <h5 class="mb-0"><i class="fas fa-key"></i> Ganti Password</h5>
                     </div>
                     <div class="card-body">
@@ -330,8 +352,8 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                     </div>
                 </div>
                 <?php else: ?>
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="fab fa-google"></i> Akun Google</h5></div>
+                <div class="card profile-glass profile-google-card h-100">
+                    <div class="card-header profile-card-header"><h5 class="mb-0"><i class="fab fa-google"></i> Akun Google</h5></div>
                     <div class="card-body">
                         <p class="mb-0">Anda masuk menggunakan Google. Keamanan akun dikelola oleh Google, sehingga password lokal tidak diperlukan.</p>
                     </div>
@@ -339,11 +361,13 @@ $form_alamat = (!empty($errors_detail) && isset($_POST['alamat'])) ? htmlspecial
                 <?php endif; ?>
             </div>
         </div>
+        </div>
     </main>
 
-    <footer class="bg-dark text-white text-center py-4">
+    <footer class="profile-footer">
         <div class="container">
-            <p class="mb-0">&copy; <?php echo date("Y"); ?> <?php echo NAMA_KLINIK; ?>. All Rights Reserved.</p>
+            <span>&copy; <?php echo date("Y"); ?> <?php echo NAMA_KLINIK; ?></span>
+            <div><a href="privasi.php">Privasi</a><a href="ketentuan.php">Ketentuan</a></div>
         </div>
     </footer>
 
