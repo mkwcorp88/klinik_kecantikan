@@ -20,6 +20,8 @@
                     <a href="afiliasi.php">Dashboard Afiliator</a>
                     <a href="cabang.php">Cabang</a>
                     <a href="kontak.php">Kontak</a>
+                    <a href="privasi.php">Kebijakan Privasi</a>
+                    <a href="ketentuan.php">Syarat &amp; Ketentuan</a>
                 </div>
             </div>
         </div>
