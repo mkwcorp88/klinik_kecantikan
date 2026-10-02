@@ -162,6 +162,24 @@
     z-index: 1;
 }
 
+.drw-inner-hero-art img.drw-photo-about,
+.drw-image-main.drw-photo-about {
+    object-position: 35% center;
+}
+
+.drw-inner-hero-art img.drw-photo-clinic {
+    object-position: 67% center;
+}
+
+.drw-inner-hero-art img.drw-photo-consultation {
+    object-position: 62% center;
+}
+
+.drw-inner-hero-art img.drw-photo-facial,
+.drw-services .drw-service-card > img.drw-photo-facial {
+    object-position: 57% center;
+}
+
 .drw-inner-hero-art::before,
 .drw-inner-hero-art::after {
     border: 1px solid rgba(41, 123, 180, 0.35);
@@ -540,6 +558,15 @@
 
 .drw-branch-card.is-featured .drw-branch-meta i {
     color: #ffd0e5;
+}
+
+.drw-branch-photo {
+    aspect-ratio: 16 / 9;
+    border-radius: 0.9rem;
+    display: block;
+    margin-bottom: 1.5rem;
+    object-fit: cover;
+    width: 100%;
 }
 
 .drw-branch-actions {
@@ -965,6 +992,7 @@
     box-shadow: 0 1.5rem 3.5rem rgba(170, 22, 83, 0.17);
     height: 26rem;
     object-fit: cover;
+    object-position: center 46%;
     position: relative;
     width: min(100%, 23rem);
     z-index: 2;
@@ -1058,23 +1086,18 @@
     font-size: 0.8rem;
 }
 
-.drw-avatar-stack {
-    display: flex;
-    padding-left: 0.25rem;
-}
-
-.drw-avatar {
-    background: center/cover;
-    border: 2px solid #fff;
+.drw-trust-row .drw-trust-icon {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--drw-line);
     border-radius: 50%;
-    height: 2rem;
-    margin-left: -0.3rem;
-    width: 2rem;
+    color: var(--drw-pink);
+    display: inline-flex;
+    font-size: 1.05rem;
+    height: 2.5rem;
+    justify-content: center;
+    width: 2.5rem;
 }
-
-.drw-avatar-one { background-image: url('../images/konsultasi_dokter.jpg'); }
-.drw-avatar-two { background-image: url('../images/facial_brightening.jpg'); }
-.drw-avatar-three { background-image: url('../images/body_spa.jpg'); }
 
 .drw-intro-section {
     background: #fff;
@@ -1162,6 +1185,14 @@
     object-fit: cover;
     transition: transform 220ms ease;
     width: 100%;
+}
+
+.drw-services .drw-service-card > img.drw-photo-skinbooster {
+    object-position: 63% center;
+}
+
+.drw-services .drw-service-card > img.drw-photo-doctor {
+    object-position: 62% center;
 }
 
 .drw-services .drw-service-card:hover > img {

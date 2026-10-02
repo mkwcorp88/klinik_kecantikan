@@ -17,7 +17,7 @@ require 'partials/site_header.php';
                     <p>Klinik Pratama DRW Estetika hadir untuk membantu setiap orang merasa lebih percaya diri melalui perawatan yang aman, nyaman, dan sesuai kebutuhan.</p>
                 </div>
                 <div class="col-lg-5">
-                    <div class="drw-inner-hero-art"><img src="images/konsultasi_dokter.jpg" alt="Konsultasi di Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'"></div>
+                    <div class="drw-inner-hero-art"><img class="drw-photo-about" src="images/clinic/tentang-kami-klinik.webp" alt="Staf dan pasien di Klinik Pratama DRW Estetika" width="1600" height="901" decoding="async"></div>
                 </div>
             </div>
         </div>
@@ -26,7 +26,7 @@ require 'partials/site_header.php';
     <section class="drw-page-section">
         <div class="container">
             <div class="row align-items-center gy-5">
-                <div class="col-lg-5"><img class="drw-content-photo" src="images/body_spa.jpg" alt="Suasana perawatan yang nyaman" onerror="this.src='images/default_layanan.jpg'"></div>
+                <div class="col-lg-5"><img class="drw-content-photo" src="images/clinic/klinik-purworejo-interior.webp" alt="Area penerimaan pasien di Klinik Pratama DRW Estetika Purworejo" width="1600" height="1201" loading="lazy" decoding="async"></div>
                 <div class="col-lg-6 offset-lg-1">
                     <div class="drw-section-kicker">KLINIK PRATAMA DRW ESTETIKA</div>
                     <h2>Merawat kulit dengan pendekatan yang <em>lebih personal.</em></h2>

@@ -16,7 +16,7 @@ require 'partials/site_header.php';
                     <h1>Lebih dekat dengan <em>Anda.</em></h1>
                     <p>Pilih cabang Klinik Pratama DRW Estetika yang paling nyaman untuk konsultasi dan perawatan Anda.</p>
                 </div>
-                <div class="col-lg-5"><div class="drw-inner-hero-art"><img src="images/konsultasi_dokter.jpg" alt="Pelayanan Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'"></div></div>
+                <div class="col-lg-5"><div class="drw-inner-hero-art"><img class="drw-photo-clinic" src="images/clinic/klinik-purworejo-interior.webp" alt="Area dalam Klinik Pratama DRW Estetika Purworejo" width="1600" height="1201" decoding="async"></div></div>
             </div>
         </div>
     </section>
@@ -39,6 +39,7 @@ require 'partials/site_header.php';
                             <span><i class="fa-regular fa-clock"></i>Setiap hari, 08.00-18.00 WIB</span>
                             <span><i class="fa-brands fa-whatsapp"></i>0821-1085-9908</span>
                         </div>
+                        <img class="drw-branch-photo" src="images/clinic/klinik-purworejo-exterior.webp" alt="Tampak depan Klinik Pratama DRW Estetika Purworejo" width="1600" height="901" loading="lazy" decoding="async">
                         <div class="drw-branch-actions"><a class="drw-button-outline" href="kontak.php">Lihat Kontak</a><a class="drw-button-outline" href="order.php?cabang=purworejo">Buat Janji</a></div>
                     </article>
                 </div>

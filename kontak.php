@@ -16,7 +16,7 @@ require 'partials/site_header.php';
                     <h1>Siap mendengar cerita <em>kulit Anda.</em></h1>
                     <p>Hubungi tim Klinik Pratama DRW Estetika untuk konsultasi, informasi layanan, atau bantuan membuat janji.</p>
                 </div>
-                <div class="col-lg-5"><div class="drw-inner-hero-art"><img src="images/konsultasi_dokter.jpg" alt="Tim konsultasi Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'"></div></div>
+                <div class="col-lg-5"><div class="drw-inner-hero-art"><img class="drw-photo-consultation" src="images/clinic/konsultasi.webp" alt="Percakapan konsultasi perawatan kulit di klinik" width="1600" height="900" decoding="async"></div></div>
             </div>
         </div>
     </section>

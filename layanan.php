@@ -16,7 +16,7 @@ require 'partials/site_header.php';
                     <h1>Perawatan yang disesuaikan dengan <em>kebutuhan Anda.</em></h1>
                     <p>Mulai dari perawatan dasar hingga tindakan dokter, tim kami membantu Anda memilih langkah yang lebih sesuai melalui konsultasi terlebih dahulu.</p>
                 </div>
-                <div class="col-lg-5"><div class="drw-inner-hero-art"><img src="images/facial_brightening.jpg" alt="Perawatan facial di Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'"></div></div>
+                <div class="col-lg-5"><div class="drw-inner-hero-art"><img class="drw-photo-facial" src="images/clinic/layanan-facial.webp" alt="Sesi perawatan facial di klinik" width="1600" height="900" decoding="async"></div></div>
             </div>
         </div>
     </section>

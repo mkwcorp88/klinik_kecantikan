@@ -20,18 +20,14 @@ require 'partials/site_header.php';
                         <a class="drw-text-link" href="tentang.php">Kenali klinik kami <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
                     <div class="drw-trust-row">
-                        <div class="drw-avatar-stack" aria-label="Tim Klinik Pratama DRW Estetika">
-                            <span class="drw-avatar drw-avatar-one"></span>
-                            <span class="drw-avatar drw-avatar-two"></span>
-                            <span class="drw-avatar drw-avatar-three"></span>
-                        </div>
+                        <span class="drw-trust-icon" aria-hidden="true"><i class="fa-solid fa-heart-pulse"></i></span>
                         <div><strong>Sejak 2016</strong><span>Merawat berbagai kebutuhan kulit</span></div>
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="drw-hero-visual">
                         <div class="drw-arch-shape"></div>
-                        <img src="images/konsultasi_dokter.jpg" alt="Konsultasi perawatan kulit di Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'">
+                        <img src="images/clinic/beranda-treatment-portrait.webp" alt="Tenaga klinik melakukan perawatan kulit pada pasien" width="901" height="1600" fetchpriority="high" decoding="async">
                         <div class="drw-floating-card drw-card-top"><i class="fa-solid fa-user-doctor"></i><span>Dokter &amp; Terapis<br><strong>Profesional</strong></span></div>
                         <div class="drw-floating-card drw-card-bottom"><i class="fa-solid fa-heart-pulse"></i><span>Perawatan yang<br><strong>Personal</strong></span></div>
                         <span class="drw-orbit drw-orbit-one"></span>
@@ -47,7 +43,7 @@ require 'partials/site_header.php';
             <div class="row align-items-center gy-5">
                 <div class="col-lg-5">
                     <div class="drw-image-collage">
-                        <img class="drw-image-main" src="images/body_spa.jpg" alt="Suasana perawatan di Klinik Pratama DRW Estetika" onerror="this.src='images/default_layanan.jpg'">
+                        <img class="drw-image-main drw-photo-about" src="images/clinic/tentang-kami-klinik.webp" alt="Staf melayani pasien di Klinik Pratama DRW Estetika" width="1600" height="901" loading="lazy" decoding="async">
                         <div class="drw-image-note"><i class="fa-solid fa-quote-left"></i><span>Nyaman, aman, dan didampingi.</span></div>
                     </div>
                 </div>
@@ -72,10 +68,10 @@ require 'partials/site_header.php';
                 <a class="drw-text-link d-none d-md-inline-flex" href="layanan.php">Lihat semua layanan <i class="fa-solid fa-arrow-right"></i></a>
             </div>
             <div class="row g-4">
-                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#facial"><img src="images/facial_brightening.jpg" alt="Perawatan facial" onerror="this.src='images/default_layanan.jpg'"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>01</small><strong>Facial</strong><em>Untuk kulit lebih bersih dan segar <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
-                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#dpl"><img src="images/laser_rejuve.jpg" alt="Perawatan DPL" onerror="this.src='images/default_layanan.jpg'"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>02</small><strong>DPL</strong><em>Solusi untuk flek dan pigmentasi <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
-                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#skin-booster"><img src="images/chemical_peeling.jpg" alt="Perawatan skin booster" onerror="this.src='images/default_layanan.jpg'"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>03</small><strong>Skin Booster</strong><em>Untuk kulit lebih terhidrasi <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
-                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#tindakan-dokter"><img src="images/infus_whitening.jpg" alt="Tindakan dokter estetika" onerror="this.src='images/default_layanan.jpg'"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>04</small><strong>Tindakan Dokter</strong><em>Dengan konsultasi terlebih dahulu <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
+                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#facial"><img class="drw-photo-facial" src="images/clinic/layanan-facial.webp" alt="Sesi perawatan facial" width="1600" height="900" loading="lazy" decoding="async"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>01</small><strong>Facial</strong><em>Untuk kulit lebih bersih dan segar <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
+                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#dpl"><img src="images/clinic/layanan-dpl.webp" alt="Sesi perawatan DPL" width="901" height="1600" loading="lazy" decoding="async"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>02</small><strong>DPL</strong><em>Solusi untuk flek dan pigmentasi <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
+                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#skin-booster"><img class="drw-photo-skinbooster" src="images/clinic/layanan-skinbooster.webp" alt="Sesi perawatan skin booster" width="1600" height="901" loading="lazy" decoding="async"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>03</small><strong>Skin Booster</strong><em>Untuk kulit lebih terhidrasi <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
+                <div class="col-sm-6 col-lg-3"><a class="drw-service-card" href="layanan.php#tindakan-dokter"><img class="drw-photo-doctor" src="images/clinic/layanan-tindakan-dokter.webp" alt="Tenaga klinik melakukan tindakan perawatan" width="1600" height="901" loading="lazy" decoding="async"><span class="drw-service-overlay"></span><span class="drw-service-content"><small>04</small><strong>Tindakan Dokter</strong><em>Dengan konsultasi terlebih dahulu <i class="fa-solid fa-arrow-right"></i></em></span></a></div>
             </div>
             <a class="drw-text-link d-md-none mt-4" href="layanan.php">Lihat semua layanan <i class="fa-solid fa-arrow-right"></i></a>
         </div>
