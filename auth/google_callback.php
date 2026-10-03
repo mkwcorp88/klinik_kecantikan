@@ -5,21 +5,23 @@ require_once __DIR__ . '/bootstrap.php';
 
 $oauthContext = $_SESSION['google_oauth'] ?? null;
 unset($_SESSION['google_oauth']);
+$oauthMode = is_array($oauthContext) ? ($oauthContext['mode'] ?? 'login') : 'login';
+$loginPath = $oauthMode === 'admin' ? 'admin/login_admin.php' : 'login.php';
 
 if (!is_array($oauthContext)
     || !isset($oauthContext['state'], $oauthContext['nonce'], $oauthContext['code_verifier'], $oauthContext['expires_at'])
     || time() > (int) $oauthContext['expires_at']
     || !isset($_GET['state'])
     || !hash_equals((string) $oauthContext['state'], (string) $_GET['state'])) {
-    drw_google_flash_and_redirect('danger', 'Sesi Login Google tidak valid atau sudah kedaluwarsa. Silakan coba lagi.');
+    drw_google_flash_and_redirect('danger', 'Sesi Login Google tidak valid atau sudah kedaluwarsa. Silakan coba lagi.', $loginPath);
 }
 
 if (isset($_GET['error'])) {
-    drw_google_flash_and_redirect('warning', 'Login Google dibatalkan atau tidak diizinkan.');
+    drw_google_flash_and_redirect('warning', 'Login Google dibatalkan atau tidak diizinkan.', $loginPath);
 }
 
 if (!isset($_GET['code']) || !is_string($_GET['code']) || $_GET['code'] === '') {
-    drw_google_flash_and_redirect('danger', 'Google tidak mengirimkan kode otorisasi yang valid.');
+    drw_google_flash_and_redirect('danger', 'Google tidak mengirimkan kode otorisasi yang valid.', $loginPath);
 }
 
 try {
@@ -43,14 +45,16 @@ try {
         || !$audienceMatches
         || !isset($payload['nonce'])
         || !hash_equals((string) $oauthContext['nonce'], (string) $payload['nonce'])
-        || empty($payload['sub'])
+        || !is_string($payload['sub'] ?? null)
+        || $payload['sub'] === ''
+        || strlen($payload['sub']) > 255
         || empty($payload['email'])
-        || empty($payload['email_verified'])) {
+        || filter_var($payload['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN) !== true) {
         throw new RuntimeException('Identitas Google tidak dapat diverifikasi.');
     }
 
     $googleSub = (string) $payload['sub'];
-    $googleEmail = filter_var((string) $payload['email'], FILTER_VALIDATE_EMAIL);
+    $googleEmail = filter_var(strtolower((string) $payload['email']), FILTER_VALIDATE_EMAIL);
     $fullName = trim((string) ($payload['name'] ?? ''));
     if ($googleEmail === false) {
         throw new RuntimeException('Email akun Google tidak valid.');
@@ -60,13 +64,49 @@ try {
     }
     $fullName = substr($fullName, 0, 100);
 
+    if ($oauthMode === 'admin') {
+        require_once __DIR__ . '/../admin/admin_auth.php';
+        $admin = drw_admin_google_account($conn, $googleEmail);
+        if (!is_array($admin)
+            || ($admin['status_admin'] ?? '') !== 'aktif'
+            || $admin['id_cabang'] !== null
+            || !hash_equals('drwcorpora@gmail.com', $googleEmail)) {
+            throw new RuntimeException('Akun Google ini tidak memiliki akses super admin.');
+        }
+
+        if ($admin['google_sub'] === null) {
+            $statement = $conn->prepare("UPDATE admin SET google_sub = ? WHERE id_admin = ? AND google_sub IS NULL AND status_admin = 'aktif' AND id_cabang IS NULL");
+            $adminId = (int) $admin['id_admin'];
+            $statement->bind_param('si', $googleSub, $adminId);
+            $statement->execute();
+            $statement->close();
+            $admin = drw_admin_google_account($conn, $googleEmail);
+        }
+
+        if (!is_array($admin)
+            || ($admin['status_admin'] ?? '') !== 'aktif'
+            || $admin['id_cabang'] !== null
+            || !is_string($admin['google_sub'])
+            || !hash_equals($admin['google_sub'], $googleSub)) {
+            throw new RuntimeException('Identitas Google tidak cocok dengan akun super admin.');
+        }
+
+        drw_admin_set_session((int) $admin['id_admin'], (string) $admin['username'], null, 'Semua Klinik', true, $googleSub);
+        header('Location: ' . drw_app_url('admin/index.php'));
+        exit();
+    }
+
+    if (!in_array($oauthMode, ['login', 'link'], true)) {
+        throw new RuntimeException('Mode Login Google tidak valid.');
+    }
+
     $statement = $conn->prepare('SELECT id_user, username, nama_lengkap, auth_provider FROM user WHERE google_sub = ? LIMIT 1');
     $statement->bind_param('s', $googleSub);
     $statement->execute();
     $googleUser = $statement->get_result()->fetch_assoc();
     $statement->close();
 
-    if (($oauthContext['mode'] ?? 'login') === 'link') {
+    if ($oauthMode === 'link') {
         if (!isset($_SESSION['user_id'])) {
             throw new RuntimeException('Sesi akun pasien tidak ditemukan.');
         }
@@ -119,5 +159,5 @@ try {
     exit();
 } catch (Throwable $exception) {
     error_log('Google OAuth failed: ' . $exception->getMessage());
-    drw_google_flash_and_redirect('danger', 'Login Google belum dapat diselesaikan. Silakan coba kembali.');
+    drw_google_flash_and_redirect('danger', 'Login Google belum dapat diselesaikan. Silakan coba kembali.', $loginPath);
 }

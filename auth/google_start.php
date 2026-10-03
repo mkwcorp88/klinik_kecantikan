@@ -3,18 +3,20 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 
-try {
-    drw_google_client();
-} catch (RuntimeException $exception) {
-    drw_google_flash_and_redirect('danger', $exception->getMessage());
-}
-
 $mode = 'login';
-if (($_GET['mode'] ?? '') === 'link') {
+if (($_GET['mode'] ?? '') === 'admin') {
+    $mode = 'admin';
+} elseif (($_GET['mode'] ?? '') === 'link') {
     if (!isset($_SESSION['user_id'])) {
         drw_google_flash_and_redirect('warning', 'Silakan login terlebih dahulu untuk menghubungkan akun Google.');
     }
     $mode = 'link';
+}
+
+try {
+    drw_google_client();
+} catch (RuntimeException $exception) {
+    drw_google_flash_and_redirect('danger', $exception->getMessage(), $mode === 'admin' ? 'admin/login_admin.php' : 'login.php');
 }
 
 $state = drw_google_base64url(random_bytes(32));

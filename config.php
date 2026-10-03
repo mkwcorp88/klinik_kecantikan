@@ -172,7 +172,17 @@ function drw_consume_post_login_redirect(string $fallback = 'index.php'): string
 
 function drw_login_user(array $user): void
 {
-    unset($_SESSION['csrf_token'], $_SESSION['admin_logged_in'], $_SESSION['admin_username']);
+    unset(
+        $_SESSION['csrf_token'],
+        $_SESSION['admin_logged_in'],
+        $_SESSION['admin_id'],
+        $_SESSION['admin_username'],
+        $_SESSION['admin_cabang_id'],
+        $_SESSION['admin_cabang_nama'],
+        $_SESSION['admin_is_super'],
+        $_SESSION['admin_auth_method'],
+        $_SESSION['admin_google_sub']
+    );
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int) $user['id_user'];
     $_SESSION['username'] = (string) $user['username'];

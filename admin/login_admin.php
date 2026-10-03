@@ -5,11 +5,13 @@ require_once __DIR__ . '/admin_auth.php';
 $errors = [];
 $csrfToken = drw_csrf_token();
 
-// Jika sudah login sebagai admin, redirect ke dashboard
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+// Pastikan sesi lama masih memiliki izin sebelum masuk ke dashboard.
+if (drw_admin_session_valid($conn)) {
     header("Location: index.php");
     exit();
 }
+drw_admin_clear_session();
+$flash = drw_consume_flash();
 
 $branches = drw_admin_fetch_branches($conn);
 $branchesById = [];
@@ -53,7 +55,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // 1) Coba akun admin per klinik dari database.
         $dbAdmin = drw_admin_login_db_account($conn, $username);
-        if (is_array($dbAdmin) && ($dbAdmin['status_admin'] ?? '') === 'aktif' && password_verify($password, (string) $dbAdmin['password_hash'])) {
+        if (is_array($dbAdmin)
+            && ($dbAdmin['status_admin'] ?? '') === 'aktif'
+            && is_string($dbAdmin['password_hash'])
+            && $dbAdmin['password_hash'] !== ''
+            && password_verify($password, $dbAdmin['password_hash'])) {
             $adminCabangId = $dbAdmin['id_cabang'] !== null ? (int) $dbAdmin['id_cabang'] : null;
             if ($adminCabangId === null) {
                 // Superadmin boleh memilih semua klinik atau satu klinik tertentu.
@@ -72,7 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $sessionCabangNama = (string) ($branchesById[$adminCabangId]['nama_cabang'] ?? $chosenCabangNama);
                 }
             }
-        } else {
+        } elseif ($dbAdmin === null) {
             // 2) Fallback akun superadmin lama dari env/config (masa transisi).
             $passwordIsValid = ADMIN_PASSWORD_HASH !== '' && password_verify($password, ADMIN_PASSWORD_HASH);
             $legacyLocalPasswordIsValid = APP_ENV === 'local'
@@ -86,6 +92,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } else {
                 $errors[] = "Username, password, atau pilihan klinik salah.";
             }
+        } else {
+            $errors[] = "Username, password, atau pilihan klinik salah.";
         }
 
         if ($loginOk && empty($errors)) {
@@ -132,15 +140,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <small><?php echo NAMA_KLINIK; ?></small>
             </div>
             <div class="card-body p-4">
+                <?php if ($flash !== null): ?>
+                    <div class="alert alert-<?php echo htmlspecialchars(in_array($flash['type'], ['success', 'warning', 'info', 'danger'], true) ? $flash['type'] : 'info', ENT_QUOTES, 'UTF-8'); ?>" role="alert">
+                        <?php echo htmlspecialchars($flash['message'], ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php endif; ?>
                 <?php if (!empty($errors)): ?>
                     <div class="alert alert-danger">
                         <?php foreach ($errors as $error): ?>
-                            <p class="mb-0"><?php echo $error; ?></p>
+                            <p class="mb-0"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></p>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
                 <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'belum_login_admin'): ?>
                     <div class="alert alert-warning">Anda harus login sebagai admin untuk mengakses halaman tersebut.</div>
+                <?php endif; ?>
+
+                <?php if (GOOGLE_OAUTH_CONFIGURED): ?>
+                    <div class="d-grid mb-3">
+                        <a class="btn btn-outline-dark" href="../auth/google_start.php?mode=admin">Masuk dengan Google sebagai Super Admin</a>
+                    </div>
+                    <div class="text-center text-muted small mb-3">atau gunakan akun admin klinik</div>
                 <?php endif; ?>
 
                 <form action="login_admin.php" method="post">
