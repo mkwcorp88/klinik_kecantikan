@@ -153,31 +153,30 @@
 
 .drw-inner-hero-art img {
     border: 0.75rem solid rgba(255, 255, 255, 0.62);
-    border-radius: 12rem 12rem 1.5rem 1.5rem;
+    border-radius: 5rem 5rem 1.5rem 1.5rem;
     box-shadow: 0 1.5rem 3.5rem rgba(27, 82, 126, 0.18);
-    height: 20rem;
+    height: 18rem;
     object-fit: cover;
     position: relative;
-    width: min(100%, 18rem);
+    width: min(100%, 24rem);
     z-index: 1;
 }
 
-.drw-inner-hero-art img.drw-photo-about,
-.drw-image-main.drw-photo-about {
-    object-position: 35% center;
+.drw-inner-hero-art img.drw-photo-about {
+    object-position: 30% center;
 }
 
 .drw-inner-hero-art img.drw-photo-clinic {
-    object-position: 67% center;
+    object-position: center;
 }
 
 .drw-inner-hero-art img.drw-photo-consultation {
-    object-position: 62% center;
+    object-position: 46% center;
 }
 
 .drw-inner-hero-art img.drw-photo-facial,
 .drw-services .drw-service-card > img.drw-photo-facial {
-    object-position: 57% center;
+    object-position: 55% center;
 }
 
 .drw-inner-hero-art::before,
@@ -245,8 +244,8 @@
 .drw-content-photo {
     border-radius: 1.3rem;
     box-shadow: 0 1.3rem 3rem rgba(27, 82, 126, 0.12);
-    min-height: 25rem;
-    object-fit: cover;
+    display: block;
+    height: auto;
     width: 100%;
 }
 
@@ -784,8 +783,8 @@
     }
 
     .drw-inner-hero-art img {
-        height: 16rem;
-        width: 14rem;
+        height: 15rem;
+        width: min(100%, 20rem);
     }
 
     .drw-inner-hero-art::before {
@@ -982,7 +981,7 @@
     align-items: center;
     display: flex;
     justify-content: center;
-    min-height: 28rem;
+    min-height: 32rem;
     position: relative;
 }
 
@@ -990,11 +989,11 @@
     border: 0.8rem solid rgba(255, 255, 255, 0.64);
     border-radius: 14rem 14rem 1.5rem 1.5rem;
     box-shadow: 0 1.5rem 3.5rem rgba(170, 22, 83, 0.17);
-    height: 26rem;
+    height: 30rem;
     object-fit: cover;
-    object-position: center 46%;
+    object-position: center 16%;
     position: relative;
-    width: min(100%, 23rem);
+    width: min(100%, 20rem);
     z-index: 2;
 }
 
@@ -1002,11 +1001,11 @@
     background: rgba(255, 255, 255, 0.42);
     border: 1px solid rgba(41, 123, 180, 0.16);
     border-radius: 14rem 14rem 0 0;
-    height: 24rem;
+    height: 28rem;
     position: absolute;
     right: 3%;
     top: 1.9rem;
-    width: 23rem;
+    width: 22rem;
 }
 
 .drw-floating-card {
@@ -1123,16 +1122,20 @@
 }
 
 .drw-image-collage {
-    min-height: 25rem;
+    min-height: 22rem;
     position: relative;
 }
 
 .drw-image-main {
     border-radius: 1.3rem 6rem 1.3rem 1.3rem;
     box-shadow: 0 1.2rem 2.8rem rgba(170, 22, 83, 0.12);
-    height: 25rem;
+    height: 20rem;
     object-fit: cover;
-    width: min(100%, 24rem);
+    width: min(100%, 27rem);
+}
+
+.drw-image-main.drw-photo-about {
+    object-position: 30% center;
 }
 
 .drw-image-note {
@@ -1174,7 +1177,7 @@
 .drw-services .drw-service-card {
     color: #fff;
     display: block;
-    height: 21rem;
+    height: 17rem;
     overflow: hidden;
     position: relative;
     text-decoration: none;
@@ -1188,7 +1191,7 @@
 }
 
 .drw-services .drw-service-card > img.drw-photo-skinbooster {
-    object-position: 63% center;
+    object-position: 38% center;
 }
 
 .drw-services .drw-service-card > img.drw-photo-doctor {
@@ -1410,18 +1413,18 @@
     }
 
     .drw-hero-visual {
-        min-height: 22rem;
+        min-height: 28rem;
     }
 
     .drw-hero-visual img {
-        height: 20rem;
+        height: 26rem;
         width: 17rem;
     }
 
     .drw-arch-shape {
-        height: 18rem;
+        height: 25rem;
         right: 0;
-        width: 17rem;
+        width: 18rem;
     }
 
     .drw-card-top {
@@ -1434,17 +1437,19 @@
     }
 
     .drw-image-collage {
-        min-height: 20rem;
+        min-height: 15rem;
     }
 
     .drw-image-main {
-        height: 20rem;
-        width: calc(100% - 2.2rem);
+        height: 13.5rem;
+        width: calc(100% - 1.2rem);
     }
 
     .drw-image-note {
-        bottom: 0.6rem;
-        left: 7rem;
+        bottom: 0.25rem;
+        left: auto;
+        right: 0;
+        width: min(12rem, 72%);
     }
 
     .drw-cta-card {
