@@ -27,21 +27,25 @@ $navItems = [
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="css/style.css?v=3">
     <link rel="stylesheet" href="css/home.css?v=4">
-    <link rel="stylesheet" href="css/site.css?v=10">
+    <link rel="stylesheet" href="css/site.css?v=11">
     <?php foreach ($pageStyles as $pageStyle): ?>
         <link rel="stylesheet" href="<?= htmlspecialchars((string) $pageStyle, ENT_QUOTES, 'UTF-8') ?>">
     <?php endforeach; ?>
 </head>
 <body class="<?= htmlspecialchars($bodyClass, ENT_QUOTES, 'UTF-8') ?>">
-    <nav class="navbar navbar-expand-xl navbar-light drw-navbar sticky-top">
+    <nav class="navbar navbar-expand-xl navbar-light drw-navbar sticky-top" aria-label="Navigasi utama">
         <div class="container">
             <a class="navbar-brand drw-brand" href="index.php" aria-label="<?= htmlspecialchars(NAMA_KLINIK, ENT_QUOTES, 'UTF-8') ?>">
                 <img class="drw-logo-image" src="images/klinik-pratama-drw-estetika-logo.png" alt="Klinik Pratama DRW Estetika" width="1500" height="415">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#drwMainNav" aria-controls="drwMainNav" aria-expanded="false" aria-label="Buka navigasi">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <div class="drw-mobile-controls d-xl-none">
+                <a class="drw-mobile-booking" href="order.php" aria-label="Buat janji konsultasi"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i><span>Janji</span></a>
+                <button class="navbar-toggler drw-menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#drwMainNav" aria-controls="drwMainNav" aria-expanded="false" aria-label="Menu navigasi">
+                    <span class="drw-menu-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+                </button>
+            </div>
             <div class="collapse navbar-collapse" id="drwMainNav">
+                <div class="drw-mobile-nav-heading d-xl-none">Jelajahi Klinik</div>
                 <ul class="navbar-nav mx-xl-auto drw-nav-links">
                     <?php foreach ($navItems as $item): ?>
                         <li class="nav-item">
