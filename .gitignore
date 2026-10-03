@@ -3,4 +3,5 @@
 /.phpunit.result.cache
 /.env.production
 /.import/
+/data/
 /preview.html

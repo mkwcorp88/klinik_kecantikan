@@ -5,6 +5,7 @@ config.local.php.example
 .env.production
 .env.production.example
 .import/
+data/
 vendor
 preview.html
 preview.png
