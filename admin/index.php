@@ -28,14 +28,30 @@ $orderStatusMeta = [
 
 $orderStatusCounts = array_fill_keys(array_keys($orderStatusMeta), 0);
 $recentOrders = [];
+$todayStart = (new DateTimeImmutable('today', new DateTimeZone('Asia/Jakarta')))->format('Y-m-d H:i:s');
+$tomorrowStart = (new DateTimeImmutable('tomorrow', new DateTimeZone('Asia/Jakarta')))->format('Y-m-d H:i:s');
+$aidoOverview = null;
+
+if (drw_admin_is_super() && $adminCabangId === null) {
+    $aidoMembers = $countQuery($conn, 'SELECT COUNT(*) AS total FROM user WHERE aido_mr IS NOT NULL');
+    $activeBranches = $countQuery($conn, "SELECT COUNT(*) AS total FROM cabang WHERE status_cabang = 'aktif'");
+    $aidoResult = $conn->query('SELECT COUNT(*) AS total, COUNT(DISTINCT id_cabang) AS branch_count, MAX(tanggal_treatment) AS latest FROM `order` WHERE aido_trx_id IS NOT NULL');
+    $aidoOverview = $aidoResult->fetch_assoc();
+    $aidoOverview['members'] = $aidoMembers;
+    $aidoOverview['active_branches'] = $activeBranches;
+    $aidoResult->close();
+}
 
 if ($adminCabangId === null) {
     $total_users = $countQuery($conn, 'SELECT COUNT(*) AS total FROM user');
     $today_orders = $countQuery(
         $conn,
         "SELECT COUNT(*) AS total FROM `order`
-         WHERE DATE(tanggal_treatment) = CURDATE()
-           AND status_order IN ('pending', 'confirmed')"
+         WHERE aido_trx_id IS NULL
+           AND tanggal_treatment >= ? AND tanggal_treatment < ?
+           AND status_order IN ('pending', 'confirmed')",
+        'ss',
+        [$todayStart, $tomorrowStart]
     );
     $pending_affiliates = $countQuery(
         $conn,
@@ -52,7 +68,7 @@ if ($adminCabangId === null) {
         "SELECT COUNT(*) AS total FROM affiliate_withdrawal WHERE status = 'pending'"
     );
 
-    $stmt = $conn->prepare("SELECT status_order, COUNT(*) AS total FROM `order` GROUP BY status_order");
+    $stmt = $conn->prepare("SELECT status_order, COUNT(*) AS total FROM `order` WHERE aido_trx_id IS NULL GROUP BY status_order");
     $stmtRecent = $conn->prepare(
         "SELECT o.id_order, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat,
                 u.nama_lengkap AS nama_user, l.nama_layanan, c.nama_cabang
@@ -60,16 +76,14 @@ if ($adminCabangId === null) {
          JOIN user u ON u.id_user = o.id_user
          JOIN layanan l ON l.id_layanan = o.id_layanan
          LEFT JOIN cabang c ON c.id_cabang = o.id_cabang
+         WHERE o.aido_trx_id IS NULL
          ORDER BY o.tanggal_order_dibuat DESC
          LIMIT 6"
     );
 } else {
     $total_users = $countQuery(
         $conn,
-        "SELECT COUNT(DISTINCT u.id_user) AS total
-         FROM user u
-         JOIN `order` o ON o.id_user = u.id_user
-         WHERE o.id_cabang = ?",
+        "SELECT COUNT(*) AS total FROM user WHERE id_cabang = ?",
         'i',
         [$adminCabangId]
     );
@@ -77,10 +91,11 @@ if ($adminCabangId === null) {
         $conn,
         "SELECT COUNT(*) AS total FROM `order`
          WHERE id_cabang = ?
-           AND DATE(tanggal_treatment) = CURDATE()
+           AND aido_trx_id IS NULL
+           AND tanggal_treatment >= ? AND tanggal_treatment < ?
            AND status_order IN ('pending', 'confirmed')",
-        'i',
-        [$adminCabangId]
+        'iss',
+        [$adminCabangId, $todayStart, $tomorrowStart]
     );
     $pending_affiliates = $countQuery(
         $conn,
@@ -106,7 +121,7 @@ if ($adminCabangId === null) {
         [$adminCabangId]
     );
 
-    $stmt = $conn->prepare("SELECT status_order, COUNT(*) AS total FROM `order` WHERE id_cabang = ? GROUP BY status_order");
+    $stmt = $conn->prepare("SELECT status_order, COUNT(*) AS total FROM `order` WHERE id_cabang = ? AND aido_trx_id IS NULL GROUP BY status_order");
     $stmt->bind_param('i', $adminCabangId);
     $stmtRecent = $conn->prepare(
         "SELECT o.id_order, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat,
@@ -115,7 +130,7 @@ if ($adminCabangId === null) {
          JOIN user u ON u.id_user = o.id_user
          JOIN layanan l ON l.id_layanan = o.id_layanan
          LEFT JOIN cabang c ON c.id_cabang = o.id_cabang
-         WHERE o.id_cabang = ?
+         WHERE o.id_cabang = ? AND o.aido_trx_id IS NULL
          ORDER BY o.tanggal_order_dibuat DESC
          LIMIT 6"
     );
@@ -363,6 +378,9 @@ $conn->close();
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
+                <?php if (drw_admin_is_super()): ?>
+                    <li class="nav-item"><a class="nav-link" href="aido_dashboard.php"><i class="fas fa-chart-line"></i> Data AIDO</a></li>
+                <?php endif; ?>
                 <li class="nav-item">
                     <a class="nav-link" href="kelola_user.php">
                         <i class="fas fa-users"></i> Kelola Member
@@ -426,13 +444,29 @@ $conn->close();
                     <div>
                         <div class="dashboard-eyebrow">Dashboard Operasional</div>
                         <h2 class="h3 mb-2">Halo, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></h2>
-                        <p class="mb-0">Pantau booking, member, dan afiliasi untuk <?php echo htmlspecialchars($adminCabangNama); ?>.</p>
+                        <p class="mb-0">Pantau booking website, member, dan afiliasi untuk <?php echo htmlspecialchars($adminCabangNama); ?>.</p>
                     </div>
                     <div class="dashboard-hero-meta">
                         <span><i class="fas fa-calendar-day me-2"></i><?php echo date('d M Y'); ?></span>
                         <span><i class="fas fa-clinic-medical me-2"></i><?php echo htmlspecialchars($adminCabangNama); ?></span>
                     </div>
                 </div>
+
+                <?php if ($aidoOverview !== null): ?>
+                    <div class="card dashboard-panel mb-4">
+                        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="dashboard-eyebrow text-primary">Ringkasan AIDO</div>
+                                <h3 class="h5 mb-2"><?php echo number_format((int) $aidoOverview['members'], 0, ',', '.'); ?> member AIDO tersimpan</h3>
+                                <p class="text-muted mb-0">
+                                    <?php echo number_format((int) $aidoOverview['total'], 0, ',', '.'); ?> transaksi tersimpan dari <?php echo (int) $aidoOverview['branch_count']; ?> cabang; <?php echo (int) $aidoOverview['active_branches']; ?> cabang aktif saat ini.
+                                    Tanggal transaksi terbaru: <?php echo $aidoOverview['latest'] !== null ? date('d M Y', strtotime((string) $aidoOverview['latest'])) : 'belum ada'; ?>.
+                                </p>
+                            </div>
+                            <a class="btn btn-primary" href="aido_dashboard.php">Buka Dashboard AIDO <i class="fas fa-arrow-right ms-1"></i></a>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <div class="row mb-4">
                     <div class="col-xl-3 col-md-6 mb-4">
@@ -451,11 +485,11 @@ $conn->close();
                     <div class="col-xl-3 col-md-6 mb-4">
                         <div class="card stat-card-enhanced stat-card-success">
                             <div class="card-body">
-                                <div class="text-xs text-success">Total Order</div>
+                                <div class="text-xs text-success">Booking Website</div>
                                 <div class="h3 text-gray-800"><?php echo number_format((int) $total_orders, 0, ',', '.'); ?></div>
                                 <i class="fas fa-shopping-cart stat-icon"></i>
                             </div>
-                             <a href="kelola_order.php" class="card-footer d-flex align-items-center justify-content-between">
+                             <a href="kelola_order.php?source=website" class="card-footer d-flex align-items-center justify-content-between">
                                 <span>Lihat Detail</span> <i class="fas fa-arrow-circle-right"></i>
                             </a>
                         </div>
@@ -467,7 +501,7 @@ $conn->close();
                                 <div class="h3 text-gray-800"><?php echo number_format((int) $today_orders, 0, ',', '.'); ?></div>
                                 <i class="fas fa-calendar-day stat-icon"></i>
                             </div>
-                             <a href="kelola_order.php" class="card-footer d-flex align-items-center justify-content-between">
+                             <a href="kelola_order.php?source=website" class="card-footer d-flex align-items-center justify-content-between">
                                 <span>Lihat Jadwal</span> <i class="fas fa-arrow-circle-right"></i>
                             </a>
                         </div>
@@ -490,14 +524,14 @@ $conn->close();
                     <div class="col-xl-5">
                         <div class="card dashboard-panel h-100">
                             <div class="card-header d-flex align-items-center justify-content-between">
-                                <h3 class="h6 mb-0"><i class="fas fa-chart-pie me-2"></i>Status Booking</h3>
+                                <h3 class="h6 mb-0"><i class="fas fa-chart-pie me-2"></i>Status Booking Website</h3>
                                 <span class="badge bg-light text-dark border"><?php echo number_format((int) $total_orders, 0, ',', '.'); ?> total</span>
                             </div>
                             <div class="card-body">
                                 <?php foreach ($orderStatusMeta as $statusKey => $meta): ?>
                                     <?php $statusCount = (int) $orderStatusCounts[$statusKey]; ?>
                                     <?php $statusPercent = $total_orders > 0 ? min(100, round(($statusCount / $total_orders) * 100)) : 0; ?>
-                                    <a class="dashboard-status-row" href="kelola_order.php?filter_status=<?php echo urlencode($statusKey); ?>">
+                                    <a class="dashboard-status-row" href="kelola_order.php?source=website&amp;filter_status=<?php echo urlencode($statusKey); ?>">
                                         <span class="dashboard-status-label">
                                             <span class="status-icon status-<?php echo htmlspecialchars($meta['class']); ?>">
                                                 <i class="fas fa-<?php echo htmlspecialchars($meta['icon']); ?>"></i>
@@ -518,7 +552,7 @@ $conn->close();
                         <div class="card dashboard-panel h-100">
                             <div class="card-header d-flex align-items-center justify-content-between">
                                 <h3 class="h6 mb-0"><i class="fas fa-clock me-2"></i>Booking Terbaru</h3>
-                                <a href="kelola_order.php" class="small fw-semibold">Lihat semua</a>
+                                <a href="kelola_order.php?source=website" class="small fw-semibold">Lihat semua</a>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0 dashboard-table">
@@ -569,10 +603,10 @@ $conn->close();
                         <h3 class="h5 mb-3 text-gray-700"><i class="fas fa-rocket me-2"></i>Aksi Cepat</h3>
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3">
-                        <a href="kelola_order.php?filter_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
+                        <a href="kelola_order.php?source=website&amp;filter_status=pending" class="card quick-action-card text-decoration-none text-dark shadow-sm">
                             <div class="card-body">
                                 <i class="fas fa-hourglass-half text-warning"></i>
-                                <h6 class="card-title">Order Pending</h6>
+                                <h6 class="card-title">Booking Pending</h6>
                                 <span class="dashboard-action-count"><?php echo number_format((int) $pending_orders, 0, ',', '.'); ?></span>
                             </div>
                         </a>

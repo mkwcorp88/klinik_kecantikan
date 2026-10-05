@@ -92,7 +92,7 @@ try {
         }
 
         drw_admin_set_session((int) $admin['id_admin'], (string) $admin['username'], null, 'Semua Klinik', true, $googleSub);
-        header('Location: ' . drw_app_url('admin/index.php'));
+        header('Location: ' . drw_app_url('admin/aido_dashboard.php'));
         exit();
     }
 

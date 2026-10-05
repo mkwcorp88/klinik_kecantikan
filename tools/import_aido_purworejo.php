@@ -156,7 +156,7 @@ try {
         $row = $stmtSel->get_result()->fetch_assoc();
         if ($row) {
             $idUser = (int) $row['id_user'];
-            $stmtUpd->bind_param('sssssi', $nama, $emailV, $phoneV, $alamatV, $cabangId, $mr);
+            $stmtUpd->bind_param('ssssis', $nama, $emailV, $phoneV, $alamatV, $cabangId, $mr);
             $stmtUpd->execute();
         } else {
             $stmtIns->bind_param('ssssssi', $nama, $username, $emailV, $phoneV, $alamatV, $mr, $cabangId);

@@ -1,0 +1,588 @@
+.aido-page {
+    background: #f8f5f7;
+    color: #243247;
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    min-height: 100vh;
+}
+
+.aido-shell {
+    margin: 0 auto;
+    max-width: 1360px;
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+.aido-topbar {
+    background: #fff;
+    border-bottom: 1px solid #ebdce4;
+    box-shadow: 0 5px 24px rgba(64, 32, 52, 0.04);
+}
+
+.aido-topbar-inner {
+    align-items: center;
+    display: flex;
+    gap: 32px;
+    justify-content: space-between;
+    min-height: 78px;
+}
+
+.aido-brand {
+    align-items: center;
+    color: #88204c;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    font-weight: 800;
+    gap: 10px;
+    line-height: 1.1;
+    text-decoration: none;
+}
+
+.aido-brand:hover {
+    color: #b80c52;
+}
+
+.aido-brand img {
+    height: 42px;
+    object-fit: contain;
+    width: 42px;
+}
+
+.aido-brand small {
+    color: #68758a;
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 650;
+    margin-top: 3px;
+}
+
+.aido-nav {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.aido-nav a {
+    border-radius: 10px;
+    color: #566478;
+    font-size: 0.9rem;
+    font-weight: 650;
+    padding: 10px 13px;
+    text-decoration: none;
+}
+
+.aido-nav a:hover,
+.aido-nav a.is-active {
+    background: #fff0f7;
+    color: #a51053;
+}
+
+.aido-main {
+    display: grid;
+    gap: 24px;
+    padding-bottom: 48px;
+    padding-top: 28px;
+}
+
+.aido-hero {
+    align-items: center;
+    background: linear-gradient(115deg, #24374f 0%, #792650 55%, #bb376c 100%);
+    border-radius: 22px;
+    color: #fff;
+    display: flex;
+    gap: 28px;
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 32px 36px;
+    position: relative;
+}
+
+.aido-hero::after {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+    content: "";
+    height: 260px;
+    pointer-events: none;
+    position: absolute;
+    right: -86px;
+    top: -110px;
+    width: 260px;
+}
+
+.aido-eyebrow,
+.aido-section-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.aido-eyebrow {
+    color: #ffccdf;
+    margin-bottom: 9px;
+}
+
+.aido-hero h1 {
+    color: #fff;
+    font-size: clamp(1.8rem, 3vw, 2.65rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    margin: 0 0 9px;
+}
+
+.aido-hero p {
+    color: rgba(255, 255, 255, 0.83);
+    margin: 0;
+    max-width: 35rem;
+}
+
+.aido-period {
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.23);
+    border-radius: 16px;
+    display: grid;
+    flex: 0 0 auto;
+    gap: 4px;
+    min-width: 260px;
+    padding: 15px 18px;
+    position: relative;
+    z-index: 1;
+}
+
+.aido-period span,
+.aido-period small {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.76rem;
+}
+
+.aido-period strong {
+    font-size: 0.98rem;
+}
+
+.aido-filter {
+    align-items: end;
+    background: #fff;
+    border: 1px solid #eadce4;
+    border-radius: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 17px;
+}
+
+.aido-filter label {
+    color: #59677b;
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 750;
+    margin-bottom: 6px;
+}
+
+.aido-filter .form-control {
+    min-width: 185px;
+}
+
+.aido-filter .btn {
+    font-weight: 750;
+    min-height: 38px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.aido-data-notice {
+    background: #fff9e7;
+    border: 1px solid #eedda4;
+    border-left: 5px solid #cb9931;
+    border-radius: 12px;
+    color: #69532a;
+    padding: 15px 19px;
+}
+
+.aido-data-notice strong {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.aido-data-notice p {
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.aido-kpis {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.aido-kpi,
+.aido-panel {
+    background: #fff;
+    border: 1px solid #eadce4;
+    border-radius: 17px;
+    box-shadow: 0 10px 28px rgba(67, 35, 52, 0.045);
+}
+
+.aido-kpi {
+    border-top: 4px solid #c83d78;
+    display: flex;
+    flex-direction: column;
+    min-height: 142px;
+    padding: 20px 22px;
+}
+
+.aido-kpi:nth-child(2) { border-top-color: #6a81c8; }
+.aido-kpi:nth-child(3) { border-top-color: #39a6a3; }
+.aido-kpi:nth-child(4) { border-top-color: #75a65d; }
+
+.aido-kpi span {
+    color: #617085;
+    font-size: 0.8rem;
+    font-weight: 750;
+}
+
+.aido-kpi strong {
+    color: #233449;
+    font-size: clamp(1.8rem, 2.8vw, 2.45rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+    margin: 7px 0 3px;
+}
+
+.aido-kpi small {
+    color: #788395;
+    font-size: 0.73rem;
+    margin-top: auto;
+}
+
+.aido-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.75fr);
+}
+
+.aido-panel {
+    min-width: 0;
+    padding: 23px 25px;
+}
+
+.aido-panel-heading {
+    align-items: end;
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.aido-panel-heading > strong {
+    color: #8d2858;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.aido-section-label {
+    color: #b53a72;
+    margin-bottom: 5px;
+}
+
+.aido-panel h2 {
+    color: #243247;
+    font-size: 1.17rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.aido-status-row + .aido-status-row {
+    margin-top: 14px;
+}
+
+.aido-status-row > div:first-child {
+    display: flex;
+    font-size: 0.84rem;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.aido-status-row span {
+    color: #5e6b7b;
+}
+
+.aido-status-row strong {
+    color: #27364d;
+}
+
+.aido-track {
+    background: #f1e9ee;
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.aido-track-fill {
+    background: #e8ad38;
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+}
+
+.aido-track-fill.is-confirmed { background: #60a9c7; }
+.aido-track-fill.is-completed { background: #61ad88; }
+.aido-track-fill.is-cancelled { background: #d97a89; }
+
+.aido-panel-note {
+    border-top: 1px solid #f0e7ec;
+    color: #788395;
+    font-size: 0.77rem;
+    line-height: 1.55;
+    margin: 19px 0 0;
+    padding-top: 15px;
+}
+
+.aido-panel-note code {
+    color: #7d3155;
+}
+
+.aido-coverage {
+    background: linear-gradient(155deg, #fff 0%, #fff5f9 100%);
+}
+
+.aido-coverage-count {
+    align-items: center;
+    display: flex;
+    gap: 15px;
+    margin: 26px 0 18px;
+}
+
+.aido-coverage-count strong {
+    color: #ad195b;
+    font-size: 3.1rem;
+    font-weight: 850;
+    letter-spacing: -0.06em;
+    line-height: 1;
+}
+
+.aido-coverage-count span {
+    color: #526174;
+    font-size: 0.9rem;
+    font-weight: 700;
+    max-width: 12rem;
+}
+
+.aido-coverage p {
+    color: #5f6d7e;
+    font-size: 0.84rem;
+    line-height: 1.6;
+}
+
+.aido-coverage-note {
+    background: #fff;
+    border: 1px solid #ebd0dd;
+    border-radius: 10px;
+    color: #773d59;
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1.5;
+    padding: 12px 14px;
+}
+
+.aido-legend {
+    color: #738094;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.aido-legend i {
+    background: #a84c81;
+    border-radius: 2px;
+    display: inline-block;
+    height: 8px;
+    margin: 0 5px 0 10px;
+    width: 8px;
+}
+
+.aido-legend i:nth-of-type(2) {
+    background: #5cae8b;
+}
+
+.aido-trend-scroll {
+    max-height: 560px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.aido-trend-list {
+    display: grid;
+    gap: 11px;
+    min-width: 370px;
+}
+
+.aido-trend-row {
+    align-items: center;
+    display: grid;
+    gap: 13px;
+    grid-template-columns: 76px minmax(0, 1fr) 62px;
+}
+
+.aido-trend-month {
+    color: #59677b;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.aido-trend-bars {
+    display: grid;
+    gap: 3px;
+}
+
+.aido-trend-bar {
+    background: #a84c81;
+    border-radius: 3px;
+    display: block;
+    height: 7px;
+    min-width: 0;
+}
+
+.aido-trend-bar.is-completed {
+    background: #5cae8b;
+}
+
+.aido-trend-row > strong {
+    color: #334157;
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.aido-table {
+    min-width: 800px;
+}
+
+.aido-table thead th {
+    background: #fff6fa;
+    border-bottom: 1px solid #edd8e2;
+    color: #58657a;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 14px 12px;
+    white-space: nowrap;
+}
+
+.aido-table thead small {
+    color: #8b96a5;
+    font-size: 0.67rem;
+    font-weight: 600;
+}
+
+.aido-table tbody th,
+.aido-table tbody td {
+    border-bottom: 1px solid #f1e9ee;
+    color: #35445a;
+    font-size: 0.82rem;
+    padding: 15px 12px;
+}
+
+.aido-table tbody th {
+    font-weight: 800;
+}
+
+.aido-table-coverage {
+    color: #8390a0;
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+@media (max-width: 960px) {
+    .aido-topbar-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding-bottom: 10px;
+        padding-top: 12px;
+    }
+
+    .aido-nav {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .aido-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aido-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .aido-shell {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .aido-main {
+        gap: 16px;
+        padding-top: 16px;
+    }
+
+    .aido-hero {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 25px 22px;
+    }
+
+    .aido-period {
+        min-width: 0;
+    }
+
+    .aido-filter {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aido-filter .form-control {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .aido-filter .btn {
+        grid-column: 1 / -1;
+    }
+
+    .aido-kpis {
+        gap: 10px;
+    }
+
+    .aido-kpi {
+        min-height: 136px;
+        padding: 16px;
+    }
+
+    .aido-kpi strong {
+        font-size: 1.8rem;
+    }
+
+    .aido-panel {
+        padding: 19px 17px;
+    }
+
+    .aido-panel-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 380px) {
+    .aido-filter,
+    .aido-kpis {
+        grid-template-columns: 1fr;
+    }
+}

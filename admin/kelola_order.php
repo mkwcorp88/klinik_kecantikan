@@ -10,50 +10,72 @@ $message = '';
 $message_type = '';
 $csrfToken = drw_csrf_token();
 $allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+$source = ($_GET['source'] ?? null) === 'aido' ? 'aido' : 'website';
+$requested_page = isset($_GET['page']) && is_string($_GET['page']) && ctype_digit($_GET['page']) && (int) $_GET['page'] > 0
+    ? (int) $_GET['page'] : 1;
 
 // Filter dan Search Logic (cabang admin dipaksa bila bukan superadmin semua klinik)
 $filter_status_get = isset($_GET['filter_status']) && in_array($_GET['filter_status'], $allowed_statuses, true) ? $_GET['filter_status'] : '';
 $search_user_get = isset($_GET['search_user']) && is_string($_GET['search_user']) ? trim($_GET['search_user']) : '';
-$filter_cabang_get = isset($_GET['filter_cabang']) && ctype_digit((string) $_GET['filter_cabang']) ? (int) $_GET['filter_cabang'] : 0;
+$filter_cabang_get = isset($_GET['filter_cabang']) && is_string($_GET['filter_cabang']) && ctype_digit($_GET['filter_cabang']) ? (int) $_GET['filter_cabang'] : 0;
 if ($adminCabangId !== null) {
     $filter_cabang_get = $adminCabangId;
 }
 
 // Parameter untuk filter dan search, agar tetap ada setelah aksi
-$current_query_params = [];
+$current_query_params = ['source' => $source];
 if ($filter_status_get !== '') $current_query_params['filter_status'] = $filter_status_get;
 if ($search_user_get !== '') $current_query_params['search_user'] = $search_user_get;
 if ($adminCabangId === null && $filter_cabang_get > 0) $current_query_params['filter_cabang'] = $filter_cabang_get;
-$query_string_params = http_build_query($current_query_params);
-$action_url = "kelola_order.php" . ($query_string_params ? "?".$query_string_params : "");
+$action_query_params = $current_query_params;
+if ($requested_page > 1) $action_query_params['page'] = $requested_page;
+$action_url = 'kelola_order.php?' . http_build_query($action_query_params);
+$website_query_params = $current_query_params;
+$website_query_params['source'] = 'website';
+$website_url = 'kelola_order.php?' . http_build_query($website_query_params);
+$aido_query_params = $current_query_params;
+$aido_query_params['source'] = 'aido';
+$aido_url = 'kelola_order.php?' . http_build_query($aido_query_params);
 
 // Handle Update Status Order (wajib milik klinik admin)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])) {
     if (!drw_is_valid_csrf_token($_POST['csrf_token'] ?? null)) {
         drw_flash('danger', 'Sesi formulir telah berakhir. Silakan muat ulang halaman dan coba lagi.');
     } else {
-        $order_id = intval($_POST['order_id']);
+        $order_id = (int) ($_POST['order_id'] ?? 0);
         $new_status = is_string($_POST['status_order'] ?? null) ? $_POST['status_order'] : '';
 
-        if (!in_array($new_status, $allowed_statuses, true)) {
+        if ($order_id <= 0 || !in_array($new_status, $allowed_statuses, true)) {
             drw_flash('danger', 'Status booking tidak valid.');
         } else {
-            $allowed = true;
-            if ($adminCabangId !== null) {
-                $stmt_check = $conn->prepare("SELECT id_cabang FROM `order` WHERE id_order = ? LIMIT 1");
-                $stmt_check->bind_param('i', $order_id);
-                $stmt_check->execute();
-                $orderRow = $stmt_check->get_result()->fetch_assoc();
-                $stmt_check->close();
-                if (!$orderRow || (int) ($orderRow['id_cabang'] ?? 0) !== $adminCabangId) {
-                    $allowed = false;
-                    drw_flash('danger', 'Order tersebut bukan milik klinik Anda.');
+            $stmt_check = $conn->prepare("SELECT id_cabang, aido_trx_id, status_order FROM `order` WHERE id_order = ? LIMIT 1");
+            $stmt_check->bind_param('i', $order_id);
+            $stmt_check->execute();
+            $orderRow = $stmt_check->get_result()->fetch_assoc();
+            $stmt_check->close();
+
+            if (!$orderRow) {
+                drw_flash('danger', 'Booking tidak ditemukan.');
+            } elseif ($adminCabangId !== null && (int) ($orderRow['id_cabang'] ?? 0) !== $adminCabangId) {
+                drw_flash('danger', 'Order tersebut bukan milik klinik Anda.');
+            } elseif ($orderRow['aido_trx_id'] !== null) {
+                drw_flash('danger', 'Transaksi AIDO adalah snapshot impor dan tidak dapat diubah di sini.');
+            } elseif ($orderRow['status_order'] === $new_status) {
+                drw_flash('info', 'Status booking sudah sesuai.');
+            } else {
+                $sql_update = "UPDATE `order` SET status_order = ? WHERE id_order = ? AND aido_trx_id IS NULL";
+                if ($adminCabangId !== null) {
+                    $sql_update .= " AND id_cabang = ?";
                 }
-            }
-            if ($allowed) {
-                $stmt_update = $conn->prepare("UPDATE `order` SET status_order = ? WHERE id_order = ?");
-                $stmt_update->bind_param("si", $new_status, $order_id);
-                if ($stmt_update->execute()) {
+                $stmt_update = $conn->prepare($sql_update);
+                if ($adminCabangId === null) {
+                    $stmt_update->bind_param('si', $new_status, $order_id);
+                } else {
+                    $stmt_update->bind_param('sii', $new_status, $order_id, $adminCabangId);
+                }
+                $updated = $stmt_update->execute() && $stmt_update->affected_rows === 1;
+                $stmt_update->close();
+                if ($updated) {
                     if ($new_status === 'completed') {
                         drw_process_order_commission($conn, $order_id);
                     } elseif ($new_status === 'cancelled') {
@@ -61,9 +83,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_status_order'])
                     }
                     drw_flash('success', "Status booking ID #$order_id berhasil diperbarui menjadi '" . ucfirst($new_status) . "'.");
                 } else {
-                    drw_flash('danger', 'Gagal memperbarui status booking. Terjadi kesalahan internal.');
+                    drw_flash('danger', 'Gagal memperbarui status booking. Muat ulang halaman dan coba lagi.');
                 }
-                $stmt_update->close();
             }
         }
     }
@@ -95,7 +116,7 @@ if ($result_branches) {
 $orders = [];
 $queryTypes = '';
 $queryParams = [];
-$where_clauses = [];
+$where_clauses = [$source === 'aido' ? 'o.aido_trx_id IS NOT NULL' : 'o.aido_trx_id IS NULL'];
 
 if (!empty($filter_status_get)) {
     $where_clauses[] = "o.status_order = ?";
@@ -122,22 +143,45 @@ if (!empty($search_user_get)) {
      $queryParams[] = $search_like;
 }
 
-$sql_orders = "SELECT o.id_order, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan, o.referred_by, o.komisi_nominal, o.komisi_status, ref_u.nama_lengkap AS referrer_nama
-               FROM `order` o
-               JOIN user u ON o.id_user = u.id_user
-               JOIN layanan l ON o.id_layanan = l.id_layanan
-               LEFT JOIN cabang c ON o.id_cabang = c.id_cabang
-               LEFT JOIN user ref_u ON ref_u.id_user = o.referrer_id";
-if (!empty($where_clauses)) {
-    $sql_orders .= " WHERE " . implode(" AND ", $where_clauses);
+$sql_from = "FROM `order` o
+             JOIN user u ON o.id_user = u.id_user
+             JOIN layanan l ON o.id_layanan = l.id_layanan
+             LEFT JOIN cabang c ON o.id_cabang = c.id_cabang
+             LEFT JOIN user ref_u ON ref_u.id_user = o.referrer_id";
+$sql_where = ' WHERE ' . implode(' AND ', $where_clauses);
+$total_orders_filtered = 0;
+$stmt_count = $conn->prepare('SELECT COUNT(*) AS total ' . $sql_from . $sql_where);
+if ($stmt_count) {
+    if ($queryTypes !== '') {
+        $stmt_count->bind_param($queryTypes, ...$queryParams);
+    }
+    $stmt_count->execute();
+    $count_row = $stmt_count->get_result()->fetch_assoc();
+    $total_orders_filtered = (int) ($count_row['total'] ?? 0);
+    $stmt_count->close();
 }
-$sql_orders .= " ORDER BY o.tanggal_order_dibuat DESC";
+
+$page_size = 50;
+$total_pages = max(1, (int) ceil($total_orders_filtered / $page_size));
+$current_page = min($requested_page, $total_pages);
+$page_offset = ($current_page - 1) * $page_size;
+$page_first = $total_orders_filtered > 0 ? $page_offset + 1 : 0;
+$page_last = min($total_orders_filtered, $page_offset + $page_size);
+$page_url = static function (int $page) use ($current_query_params): string {
+    $params = $current_query_params;
+    if ($page > 1) {
+        $params['page'] = $page;
+    }
+    return 'kelola_order.php?' . http_build_query($params);
+};
+
+$sql_orders = "SELECT o.id_order, o.aido_trx_id, u.nama_lengkap AS nama_user, u.no_telepon AS telepon_user, l.nama_layanan, c.nama_cabang, o.tanggal_treatment, o.status_order, o.tanggal_order_dibuat, o.catatan_tambahan, o.referred_by, o.komisi_nominal, o.komisi_status, ref_u.nama_lengkap AS referrer_nama
+               " . $sql_from . $sql_where . " ORDER BY o.tanggal_order_dibuat DESC, o.id_order DESC LIMIT ? OFFSET ?";
 
 $stmt_orders = $conn->prepare($sql_orders);
 if ($stmt_orders) {
-    if ($queryTypes !== '') {
-        $stmt_orders->bind_param($queryTypes, ...$queryParams);
-    }
+    $page_params = [...$queryParams, $page_size, $page_offset];
+    $stmt_orders->bind_param($queryTypes . 'ii', ...$page_params);
     $stmt_orders->execute();
     $result_orders = $stmt_orders->get_result();
     while ($row = $result_orders->fetch_assoc()) {
@@ -148,11 +192,11 @@ if ($stmt_orders) {
 
 // Data untuk badge di sidebar (difilter klinik aktif)
 if ($adminCabangId === null) {
-    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending'");
+    $pending_orders_query = $conn->query("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND aido_trx_id IS NULL");
     $pending_orders = ($pending_orders_query && $pending_orders_query->num_rows > 0) ? $pending_orders_query->fetch_assoc()['total'] : 0;
     if($pending_orders_query) $pending_orders_query->close();
 } else {
-    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND id_cabang = ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM `order` WHERE status_order = 'pending' AND aido_trx_id IS NULL AND id_cabang = ?");
     $stmt->bind_param('i', $adminCabangId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
@@ -210,7 +254,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
             <ul class="nav flex-column mt-3">
                 <li class="nav-item"><a class="nav-link" href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_user.php"><i class="fas fa-users"></i> Kelola Member</a></li>
-                <li class="nav-item"><a class="nav-link active" aria-current="page" href="kelola_order.php"><i class="fas fa-shopping-cart"></i> Kelola Order <?php if ($pending_orders > 0) echo "<span class='badge bg-danger ms-1'>$pending_orders</span>"; ?></a></li>
+                <li class="nav-item"><a class="nav-link active" aria-current="page" href="kelola_order.php?source=website"><i class="fas fa-shopping-cart"></i> Kelola Order <?php if ($pending_orders > 0) echo "<span class='badge bg-danger ms-1'>$pending_orders</span>"; ?></a></li>
                 <li class="nav-item"><a class="nav-link" href="kelola_afiliasi.php"><i class="fas fa-handshake"></i> Afiliator</a></li>
             </ul>
             <hr class="text-secondary"><ul class="nav flex-column"><li class="nav-item"><a class="nav-link" href="../index.php" target="_blank"><i class="fas fa-globe"></i> Lihat Website</a></li><li class="nav-item"><a class="nav-link" href="logout_admin.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li></ul>
@@ -234,12 +278,23 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                 </div>
                 <?php endif; ?>
 
+                <nav class="nav nav-pills gap-2 mb-3" aria-label="Sumber order">
+                    <a class="nav-link<?php echo $source === 'website' ? ' active' : ''; ?>" href="<?php echo htmlspecialchars($website_url, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $source === 'website' ? ' aria-current="page"' : ''; ?>>Booking Website</a>
+                    <a class="nav-link<?php echo $source === 'aido' ? ' active' : ''; ?>" href="<?php echo htmlspecialchars($aido_url, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $source === 'aido' ? ' aria-current="page"' : ''; ?>>Transaksi AIDO</a>
+                </nav>
+                <?php if ($source === 'aido'): ?>
+                <div class="alert alert-info" role="note">
+                    <strong>Data impor AIDO adalah snapshot.</strong> Status dan detail transaksi mengikuti data saat impor dan tidak dapat diubah di sini. Kategori biaya menunjukkan komponen tagihan terbesar, bukan rincian treatment; tanggal AIDO bukan waktu sinkronisasi.
+                </div>
+                <?php endif; ?>
+
                 <div class="card shadow-sm mb-4">
                     <div class="card-header py-3 bg-light border-bottom">
-                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-2"></i>Filter dan Pencarian Order</h6>
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-2"></i>Filter dan Pencarian <?php echo $source === 'aido' ? 'Transaksi AIDO' : 'Booking Website'; ?></h6>
                     </div>
                     <div class="card-body">
                         <form method="GET" action="kelola_order.php" class="row g-3 align-items-end">
+                            <input type="hidden" name="source" value="<?php echo $source; ?>">
                             <div class="col-md-4">
                                 <label for="search_user" class="form-label">Cari Member</label>
                                 <input type="text" name="search_user" id="search_user" class="form-control form-control-sm" placeholder="Nama atau username member..." value="<?php echo htmlspecialchars($search_user_get); ?>">
@@ -270,9 +325,9 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                             <div class="col-md-2 mt-auto">
                                 <button class="btn btn-primary btn-sm w-100" type="submit"><i class="fas fa-search me-1"></i> Terapkan</button>
                             </div>
-                              <?php if (!empty($filter_status_get) || !empty($search_user_get) || $filter_cabang_get > 0): ?>
+                              <?php if ($filter_status_get !== '' || $search_user_get !== '' || ($adminCabangId === null && $filter_cabang_get > 0)): ?>
                             <div class="col-12 mt-2">
-                                <a href="kelola_order.php" class="btn btn-secondary btn-sm"><i class="fas fa-times me-1"></i> Reset Filter</a>
+                                <a href="kelola_order.php?source=<?php echo $source; ?>" class="btn btn-secondary btn-sm"><i class="fas fa-times me-1"></i> Reset Filter</a>
                             </div>
                             <?php endif; ?>
                         </form>
@@ -281,7 +336,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
 
                 <div class="card shadow-sm">
                      <div class="card-header py-3 bg-light border-bottom">
-                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-ul me-2"></i>Daftar Order</h6>
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-ul me-2"></i>Daftar <?php echo $source === 'aido' ? 'Transaksi AIDO' : 'Booking Website'; ?></h6>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -291,10 +346,10 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                         <th scope="col">ID</th>
                                          <th scope="col">Member (Telp)</th>
                                          <th scope="col">Cabang</th>
-                                         <th scope="col">Layanan</th>
+                                         <th scope="col"><?php echo $source === 'aido' ? 'Kategori Biaya' : 'Layanan'; ?></th>
                                         <th scope="col">Afiliasi</th>
-                                        <th scope="col">Jadwal Treatment</th>
-                                        <th scope="col">Tgl Order</th>
+                                        <th scope="col"><?php echo $source === 'aido' ? 'Tanggal AIDO' : 'Jadwal Treatment'; ?></th>
+                                        <th scope="col"><?php echo $source === 'aido' ? 'Tgl Booking Web' : 'Tgl Order'; ?></th>
                                         <th scope="col">Catatan</th>
                                         <th scope="col" class="text-center">Status</th>
                                         <th scope="col" class="text-center">Aksi</th>
@@ -304,7 +359,12 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                     <?php if (!empty($orders)): ?>
                                         <?php foreach ($orders as $order): ?>
                                         <tr>
-                                            <td>#<?php echo $order['id_order']; ?></td>
+                                            <td>
+                                                #<?php echo (int) $order['id_order']; ?>
+                                                <?php if ($source === 'aido'): ?>
+                                                    <br><small class="text-muted">AIDO #<?php echo htmlspecialchars((string) $order['aido_trx_id'], ENT_QUOTES, 'UTF-8'); ?></small>
+                                                <?php endif; ?>
+                                            </td>
                                              <td>
                                                  <?php echo htmlspecialchars($order['nama_user']); ?><br>
                                                  <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo htmlspecialchars($order['telepon_user']); ?></small>
@@ -325,7 +385,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                                  <?php endif; ?>
                                              </td>
                                              <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_treatment'])); ?></td>
-                                            <td><?php echo date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></td>
+                                            <td><?php echo $source === 'aido' ? '—' : date('d M Y, H:i', strtotime($order['tanggal_order_dibuat'])); ?></td>
                                             <td><small><?php echo nl2br(htmlspecialchars($order['catatan_tambahan'] ? $order['catatan_tambahan'] : '-')); ?></small></td>
                                             <td class="text-center">
                                                 <span class="badge bg-<?php
@@ -336,9 +396,22 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                                         case 'cancelled': echo 'danger'; break;
                                                         default: echo 'secondary';
                                                     }
-                                                ?>"><?php echo ucfirst(htmlspecialchars($order['status_order'])); ?></span>
+                                                ?>"><?php echo htmlspecialchars(
+                                                    $source === 'aido'
+                                                        ? match ($order['status_order']) {
+                                                            'completed' => 'Lunas',
+                                                            'pending' => 'Belum tercatat lunas',
+                                                            default => ucfirst((string) $order['status_order']),
+                                                        }
+                                                        : ucfirst((string) $order['status_order']),
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ); ?></span>
                                             </td>
                                             <td class="text-center">
+                                                <?php if ($source === 'aido'): ?>
+                                                <span class="badge bg-secondary" title="Snapshot impor AIDO, tidak dapat diubah">Hanya lihat</span>
+                                                <?php else: ?>
                                                 <div class="btn-group action-dropdown">
                                                     <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Status Order">
                                                         <i class="fas fa-edit"></i> <span class="d-none d-lg-inline">Status</span>
@@ -386,22 +459,60 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                                         </li>
                                                     </ul>
                                                 </div>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="9" class="text-center">
-                                                <?php if(!empty($filter_status_get) || !empty($search_user_get) || $filter_cabang_get > 0): ?>
-                                                    Tidak ada order ditemukan dengan filter/pencarian saat ini.
+                                            <td colspan="10" class="text-center">
+                                                <?php if ($filter_status_get !== '' || $search_user_get !== '' || ($adminCabangId === null && $filter_cabang_get > 0)): ?>
+                                                    Tidak ada <?php echo $source === 'aido' ? 'transaksi AIDO' : 'booking website'; ?> ditemukan dengan filter/pencarian saat ini.
                                                 <?php else: ?>
-                                                    Belum ada data order.
+                                                    Belum ada <?php echo $source === 'aido' ? 'transaksi AIDO' : 'booking website'; ?>.
                                                 <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3">
+                            <small class="text-muted">Menampilkan <?php echo number_format($page_first, 0, ',', '.'); ?>–<?php echo number_format($page_last, 0, ',', '.'); ?> dari <?php echo number_format($total_orders_filtered, 0, ',', '.'); ?> <?php echo $source === 'aido' ? 'transaksi AIDO' : 'booking website'; ?></small>
+                            <?php if ($total_pages > 1): ?>
+                            <nav aria-label="Halaman <?php echo $source === 'aido' ? 'transaksi AIDO' : 'booking website'; ?>">
+                                <ul class="pagination pagination-sm flex-wrap mb-0">
+                                    <li class="page-item<?php echo $current_page === 1 ? ' disabled' : ''; ?>">
+                                        <?php if ($current_page > 1): ?>
+                                        <a class="page-link" href="<?php echo htmlspecialchars($page_url($current_page - 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Halaman sebelumnya">&laquo;</a>
+                                        <?php else: ?>
+                                        <span class="page-link" aria-disabled="true">&laquo;</span>
+                                        <?php endif; ?>
+                                    </li>
+                                    <?php $window_start = max(1, $current_page - 2); $window_end = min($total_pages, $current_page + 2); ?>
+                                    <?php if ($window_start > 1): ?>
+                                    <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($page_url(1), ENT_QUOTES, 'UTF-8'); ?>">1</a></li>
+                                    <?php if ($window_start > 2): ?><li class="page-item disabled"><span class="page-link" aria-hidden="true">&hellip;</span></li><?php endif; ?>
+                                    <?php endif; ?>
+                                    <?php for ($page_number = $window_start; $page_number <= $window_end; $page_number++): ?>
+                                    <li class="page-item<?php echo $page_number === $current_page ? ' active' : ''; ?>">
+                                        <a class="page-link" href="<?php echo htmlspecialchars($page_url($page_number), ENT_QUOTES, 'UTF-8'); ?>"<?php echo $page_number === $current_page ? ' aria-current="page"' : ''; ?>><?php echo $page_number; ?></a>
+                                    </li>
+                                    <?php endfor; ?>
+                                    <?php if ($window_end < $total_pages): ?>
+                                    <?php if ($window_end < $total_pages - 1): ?><li class="page-item disabled"><span class="page-link" aria-hidden="true">&hellip;</span></li><?php endif; ?>
+                                    <li class="page-item"><a class="page-link" href="<?php echo htmlspecialchars($page_url($total_pages), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $total_pages; ?></a></li>
+                                    <?php endif; ?>
+                                    <li class="page-item<?php echo $current_page === $total_pages ? ' disabled' : ''; ?>">
+                                        <?php if ($current_page < $total_pages): ?>
+                                        <a class="page-link" href="<?php echo htmlspecialchars($page_url($current_page + 1), ENT_QUOTES, 'UTF-8'); ?>" aria-label="Halaman berikutnya">&raquo;</a>
+                                        <?php else: ?>
+                                        <span class="page-link" aria-disabled="true">&raquo;</span>
+                                        <?php endif; ?>
+                                    </li>
+                                </ul>
+                            </nav>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
