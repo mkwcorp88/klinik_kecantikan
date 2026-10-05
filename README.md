@@ -1,6 +1,6 @@
 # Klinik DRW Estetika
 
-Website PHP native untuk Klinik DRW Estetika. Pasien membuat akun melalui Google, memilih cabang dan jadwal konsultasi, lalu memantau status booking. Admin menggunakan akses lokal terpisah untuk mengelola booking, layanan, pasien, dan testimoni.
+Website PHP native untuk Klinik DRW Estetika. Pasien membuat akun melalui Google, memilih cabang dan jadwal konsultasi, lalu memantau status booking. Admin dapat menggunakan akun lokal terpisah atau akun Google terverifikasi yang sudah terdaftar untuk mengelola booking, layanan, pasien, dan testimoni.
 
 ## Alur Pasien
 
@@ -59,8 +59,9 @@ Untuk database lama, buat backup lalu jalankan migrasi berikut **berurutan**:
 4. `migrations/004_member_cabang.sql` — kolom `id_cabang` pada tabel `user`, foreign key, dan pengisian cabang utama untuk member AIDO yang sudah ada.
 5. `migrations/005_affiliate_system.sql` — sistem afiliasi (kode referral, komisi, penarikan/withdrawal, dan log mutasi komisi).
 6. `migrations/006_affiliate_status.sql` — status pending/aktif/nonaktif afiliator untuk approval dan manajemen admin.
+7. `migrations/009_super_admin_google.sql` — pendaftaran superadmin Google.
 
-Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi 001–006 setelah mengimpor `klinik_drw_estetika.sql` (bootstrap sudah lengkap).
+Jalankan masing-masing **sekali saja**. Jangan menjalankan migrasi yang sudah termasuk di `klinik_drw_estetika.sql` setelah bootstrap baru diimpor.
 
 ## Konfigurasi Login Google
 
@@ -101,6 +102,10 @@ Isi `ADMIN_USERNAME` dan `ADMIN_PASSWORD_HASH` di `config.local.php`. Buat hash 
 ```sh
 php -r "echo password_hash('GantiDenganPasswordAman', PASSWORD_DEFAULT), PHP_EOL;"
 ```
+
+## Admin Google
+
+Jalankan `migrations/009_super_admin_google.sql` sekali untuk mendaftarkan `drwcorpora@gmail.com` sebagai superadmin. Masuk melalui `admin/login_admin.php` dengan Google; login pertama mengikat identitas Google terverifikasi ke akun admin. Perubahan email profil pasien tidak memberi akses admin.
 
 ## Data Klinik
 

@@ -181,7 +181,8 @@ function drw_login_user(array $user): void
         $_SESSION['admin_cabang_nama'],
         $_SESSION['admin_is_super'],
         $_SESSION['admin_auth_method'],
-        $_SESSION['admin_google_sub']
+        $_SESSION['admin_google_sub'],
+        $_SESSION['admin_google_email']
     );
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int) $user['id_user'];

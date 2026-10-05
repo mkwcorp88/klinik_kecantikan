@@ -54,7 +54,9 @@ $navItems = [
                     <?php endforeach; ?>
                 </ul>
                 <div class="drw-nav-actions">
-                    <?php if (drw_is_logged_in()): ?>
+                    <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true): ?>
+                        <a class="drw-login" href="<?= ($_SESSION['admin_is_super'] ?? false) === true ? 'admin/aido_dashboard.php' : 'admin/index.php' ?>"><i class="fa-solid fa-user-shield"></i><span>Admin</span></a>
+                    <?php elseif (drw_is_logged_in()): ?>
                         <a class="drw-login" href="profil.php"><i class="fa-regular fa-user"></i><span>Akun Saya</span></a>
                     <?php else: ?>
                         <a class="drw-login<?= $activePage === 'login' ? ' active' : '' ?>" href="login.php"><i class="fa-regular fa-user"></i><span>Masuk</span></a>
