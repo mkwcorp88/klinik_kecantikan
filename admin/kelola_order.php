@@ -367,7 +367,7 @@ $actionUrlHtml = htmlspecialchars($action_url, ENT_QUOTES, 'UTF-8');
                                             </td>
                                              <td>
                                                  <?php echo htmlspecialchars($order['nama_user']); ?><br>
-                                                 <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo htmlspecialchars($order['telepon_user']); ?></small>
+                                                 <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo htmlspecialchars((string) ($order['telepon_user'] ?: '-'), ENT_QUOTES, 'UTF-8'); ?></small>
                                              </td>
                                              <td><?php echo htmlspecialchars($order['nama_cabang'] ?? 'Belum dicatat'); ?></td>
                                              <td><?php echo htmlspecialchars($order['nama_layanan']); ?></td>
