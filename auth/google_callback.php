@@ -67,32 +67,30 @@ try {
     if ($oauthMode === 'admin') {
         require_once __DIR__ . '/../admin/admin_auth.php';
         $admin = drw_admin_google_account($conn, $googleEmail);
-        if (!is_array($admin)
-            || ($admin['status_admin'] ?? '') !== 'aktif'
-            || $admin['id_cabang'] !== null
-            || !hash_equals('drwcorpora@gmail.com', $googleEmail)) {
-            throw new RuntimeException('Akun Google ini tidak memiliki akses super admin.');
+        if (!drw_admin_google_account_allowed($admin, $googleEmail)) {
+            throw new RuntimeException('Akun Google ini tidak memiliki akses admin.');
         }
 
         if ($admin['google_sub'] === null) {
-            $statement = $conn->prepare("UPDATE admin SET google_sub = ? WHERE id_admin = ? AND google_sub IS NULL AND status_admin = 'aktif' AND id_cabang IS NULL");
+            $statement = $conn->prepare("UPDATE admin SET google_sub = ? WHERE id_admin = ? AND google_email = ? AND google_sub IS NULL AND status_admin = 'aktif'");
             $adminId = (int) $admin['id_admin'];
-            $statement->bind_param('si', $googleSub, $adminId);
+            $statement->bind_param('sis', $googleSub, $adminId, $googleEmail);
             $statement->execute();
             $statement->close();
             $admin = drw_admin_google_account($conn, $googleEmail);
         }
 
-        if (!is_array($admin)
-            || ($admin['status_admin'] ?? '') !== 'aktif'
-            || $admin['id_cabang'] !== null
+        if (!drw_admin_google_account_allowed($admin, $googleEmail)
             || !is_string($admin['google_sub'])
             || !hash_equals($admin['google_sub'], $googleSub)) {
-            throw new RuntimeException('Identitas Google tidak cocok dengan akun super admin.');
+            throw new RuntimeException('Identitas Google tidak cocok dengan akun admin.');
         }
 
-        drw_admin_set_session((int) $admin['id_admin'], (string) $admin['username'], null, 'Semua Klinik', true, $googleSub);
-        header('Location: ' . drw_app_url('admin/aido_dashboard.php'));
+        $isSuper = $admin['id_cabang'] === null;
+        $cabangId = $isSuper ? null : (int) $admin['id_cabang'];
+        $cabangNama = $isSuper ? 'Semua Klinik' : (string) $admin['nama_cabang'];
+        drw_admin_set_session((int) $admin['id_admin'], (string) $admin['username'], $cabangId, $cabangNama, $isSuper, $googleSub, $googleEmail);
+        header('Location: ' . drw_app_url($isSuper ? 'admin/aido_dashboard.php' : 'admin/index.php'));
         exit();
     }
 
